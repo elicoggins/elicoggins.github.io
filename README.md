@@ -1,6 +1,6 @@
 # elicoggins.github.io
 
-Personal site and project register
+Personal site and project register.
 
 Written in JavaScript (Vite, HTML, CSS)
 
