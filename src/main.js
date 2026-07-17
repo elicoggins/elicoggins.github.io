@@ -112,6 +112,13 @@ document.querySelector('#app').innerHTML = `
             <span role="cell">PICO-8</span>
             <span role="cell">Live</span>
           </a>
+          <a class="ledger-row" href="/keyboardwarrior/" role="row">
+            <span role="cell">5</span>
+            <span role="cell">KBW-005</span>
+            <span role="cell">Keyboard Warrior - Rhythm typing game</span>
+            <span role="cell">Web // Rust</span>
+            <span role="cell">In Development</span>
+          </a>
         </div>
 
         <footer class="ledger-footer">
