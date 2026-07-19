@@ -58,6 +58,7 @@
         --hairline: rgba(24, 24, 23, 0.36);
         --press: rgba(24, 24, 23, 0.08);
         --accent: #7e2422;
+        --font-text: "Berkeley Mono", "Courier New", monospace;
         --font-small: "Berkeley Mono", "IBM Plex Mono", "Courier New", monospace;
       }
 
@@ -141,24 +142,39 @@
         display: flex;
         justify-content: space-between;
         gap: 1rem;
-        font-size: 0.7rem;
+        font-size: clamp(0.64rem, 0.78vw, 0.76rem);
         letter-spacing: 0.18em;
         text-transform: uppercase;
-        color: var(--muted);
+        color: var(--ink);
+        border: 0;
         border-bottom: 1px solid var(--hairline);
-        padding-bottom: 0.6rem;
+        padding: 0 0 0.6rem;
+        background: transparent;
+        text-align: left;
+        transition: color 180ms ease;
       }
 
-      h1 {
-        margin: 0.4rem 0 0;
-        font-size: 1.15rem;
-        font-weight: 500;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+      a.letterhead {
+        display: flex;
+        cursor: pointer;
+      }
+
+      a.letterhead:hover,
+      a.letterhead:focus-visible {
+        color: var(--accent);
+      }
+
+      a.letterhead:focus-visible {
+        outline: 1px solid var(--ink);
+        outline-offset: 4px;
+      }
+
+      .letterhead__home::before {
+        content: "\2190\00a0";
       }
 
       .desc {
-        margin: 0.2rem 0 0;
+        margin: 0;
         font-size: 0.8rem;
         color: var(--muted);
         line-height: 1.5;
@@ -169,7 +185,7 @@
         border: 1px solid var(--ink);
         background: #000;
         width: 100%;
-        aspect-ratio: 16 / 9;
+        aspect-ratio: 3 / 2;
         overflow: hidden;
       }
 
@@ -197,9 +213,27 @@
         line-height: 1.6;
       }
 
-      .frame[data-state='pending'] .frame__notice { display: flex; }
-      .frame[data-state='pending'] { background: var(--paper-soft); }
-      .frame[data-state='pending'] #glcanvas { visibility: hidden; }
+      .frame[data-state='pending'] .frame__notice--pending,
+      .frame[data-state='desktop-only'] .frame__notice--desktop {
+        display: flex;
+      }
+
+      .frame[data-state='pending'],
+      .frame[data-state='desktop-only'] {
+        background: var(--paper-soft);
+      }
+
+      .frame[data-state='pending'] #glcanvas,
+      .frame[data-state='desktop-only'] #glcanvas {
+        visibility: hidden;
+      }
+
+      /* On mobile the game is desktop-only; give the frame a comfortable height
+         for the notice instead of the 4:3 canvas box. */
+      .frame[data-state='desktop-only'] {
+        aspect-ratio: auto;
+        min-height: 15rem;
+      }
 
       .frame__notice .stamp {
         border: 1px solid var(--hairline);
@@ -239,30 +273,36 @@
     <div class="paper-field" aria-hidden="true"></div>
 
     <div class="page">
-      <header class="letterhead">
-        <span>FILE // EC-1996</span>
+      <a class="letterhead" href="/" aria-label="Return to index">
+        <span class="letterhead__home">FILE // EC-1996</span>
         <span>KBW-005 // KEYBOARD WARRIOR</span>
-      </header>
-
-      <div>
-        <h1>Keyboard Warrior</h1>
-        <p class="desc">
-          A rhythm typing game in Rust + macroquad, copying off the homework of
-          Clone Hero.
-        </p>
-      </div>
+      </a>
 
       <div class="frame" id="game-frame" data-state="pending">
         <canvas id="glcanvas" tabindex="1"></canvas>
-        <div class="frame__notice">
+        <div class="frame__notice frame__notice--pending">
           <span class="stamp">Web build in progress</span>
           <p>
-            The browser build of Keyboard Warrior is being ported.<br />
+            The browser build of keyboard warrior is being ported.<br />
             In the meantime, the native version is on
             <a href="https://github.com/elicoggins/keyboardwarrior" target="_blank" rel="noopener noreferrer">GitHub</a>.
           </p>
         </div>
+        <div class="frame__notice frame__notice--desktop">
+          <span class="stamp">Desktop only</span>
+          <p>
+            keyboard warrior needs a physical keyboard, so it's playable on
+            desktop only.<br />
+            Come back on a computer, or grab the native version on
+            <a href="https://github.com/elicoggins/keyboardwarrior" target="_blank" rel="noopener noreferrer">GitHub</a>.
+          </p>
+        </div>
       </div>
+
+      <p class="desc">
+        A rhythm typing game in Rust + macroquad, copying off the homework of
+        Clone Hero.
+      </p>
 
       <footer class="footer-links">
         <a href="/">&larr; Return to index</a>
@@ -277,6 +317,14 @@
       // Only boot the game if the wasm build has been published alongside this page.
       (async () => {
         const frame = document.getElementById('game-frame');
+
+        // The game needs a physical keyboard: on mobile, show a notice instead
+        // of loading the wasm build. Matches the main site's 760px breakpoint.
+        if (window.matchMedia('(max-width: 760px)').matches) {
+          frame.dataset.state = 'desktop-only';
+          return;
+        }
+
         const wasmPath = '/keyboardwarrior/keyboardwarrior.wasm';
         try {
           const head = await fetch(wasmPath, { method: 'HEAD' });
