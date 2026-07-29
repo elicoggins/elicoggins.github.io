@@ -102,12 +102,38 @@
         if (ctx && ctx.state === "suspended") ctx.resume();
     }
 
+    // The demo's one non-audio hook: the menu's "download to expand library"
+    // row opens the project page. It rides in this file rather than a script
+    // of its own because the portfolio site serves its own index.html — a new
+    // <script> tag there is outside this repo, and a missing import doesn't
+    // degrade, it fails the whole wasm instantiation.
+    //
+    // The URL comes from Rust (web::DOWNLOAD_URL) as a pointer into the wasm
+    // heap, so the address the menu prints on screen and the one opened here
+    // can't drift apart.
+    function kw_open_url(ptr, len) {
+        const url = new TextDecoder().decode(new Uint8Array(wasm_memory.buffer, ptr, len));
+        // The keypress that got here is a frame or two old, so the browser's
+        // transient user activation normally still stands and a tab opens.
+        // Blockers that disagree hand back null; navigating this tab is always
+        // allowed and beats the key doing nothing at all.
+        //
+        // Deliberately no "noopener" in the feature string: with it, open()
+        // returns null on SUCCESS as well as on failure, and the fallback below
+        // then fires every time — sending the demo tab to the same page it just
+        // opened in a new one. Severing .opener afterwards does the same job.
+        const tab = window.open(url, "_blank");
+        if (tab) tab.opener = null;
+        else window.location.href = url;
+    }
+
     miniquad_add_plugin({
         register_plugin: function (importObject) {
             importObject.env.kw_audio_start = kw_audio_start;
             importObject.env.kw_audio_lag = kw_audio_lag;
             importObject.env.kw_audio_suspend = kw_audio_suspend;
             importObject.env.kw_audio_resume = kw_audio_resume;
+            importObject.env.kw_open_url = kw_open_url;
         },
         version: 1,
         name: "kw_audio",
