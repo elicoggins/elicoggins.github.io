@@ -10,6 +10,22 @@
     let ctx = null;
     let node = null;
 
+    // Game clock support. The mixer's frame counter counts frames *rendered*,
+    // but a ScriptProcessorNode renders ahead of the speaker and, because its
+    // callback runs on the main thread, in bursts — and a callback that misses
+    // its deadline makes the node emit a period of silence, which pushes every
+    // later frame further into the future. So rendered frames run ahead of
+    // heard frames by an amount that jitters and grows.
+    //
+    // These two track the mapping. `rendered` is the same count the Rust side
+    // keeps; `anchorFrame` is heard at `anchorTime` on the context clock, taken
+    // from the callback's own playbackTime. From that, kw_audio_lag reports how
+    // many rendered frames have not reached the speaker yet, and Rust subtracts
+    // it to get a clock that follows the music instead of the renderer.
+    let rendered = 0;
+    let anchorFrame = 0;
+    let anchorTime = 0;
+
     function kw_audio_start() {
         ctx = new (window.AudioContext || window.webkitAudioContext)();
         // 2048-frame pulls: ~43 ms at 48 kHz. Small enough that the game
@@ -21,6 +37,18 @@
             window.__kw_pulls = (window.__kw_pulls || 0) + 1;
             const out = e.outputBuffer;
             const n = out.length;
+            // This buffer's first frame is heard at playbackTime. A buffer
+            // being filled now can't already have played, so anything at or
+            // behind the context clock is a browser that doesn't report it
+            // (older WebKit says 0) — fall back to "one buffer from now",
+            // which is what the spec's value amounts to.
+            const pt =
+                e.playbackTime > ctx.currentTime
+                    ? e.playbackTime
+                    : ctx.currentTime + n / ctx.sampleRate;
+            anchorFrame = rendered;
+            anchorTime = pt;
+            rendered += n;
             const ptr = wasm_exports.kw_render(n);
             const mix = new Float32Array(wasm_memory.buffer, ptr, n * 2);
             const l = out.getChannelData(0);
@@ -47,6 +75,20 @@
         return ctx.sampleRate;
     }
 
+    // Frames rendered but not yet heard. The game clock is `rendered - lag`,
+    // which advances with the speaker: a burst of catch-up renders doesn't move
+    // it, and a dropout holds it still instead of teleporting it forward.
+    // Clamped because the extrapolation is only trustworthy for about as long
+    // as the buffering itself — a suspended context freezes both counts, so the
+    // lag simply holds, and the clock with it.
+    function kw_audio_lag() {
+        if (!ctx || !node) return 0;
+        const heard = anchorFrame + (ctx.currentTime - anchorTime) * ctx.sampleRate;
+        const lag = Math.min(Math.max(rendered - heard, 0), 4 * node.bufferSize);
+        window.__kw_lag = lag; // visible from the console for sync debugging
+        return lag;
+    }
+
     // The wasm decode runs on this same (main) thread and blocks the event
     // loop for hundreds of ms, so onaudioprocess can't fire and the pipeline
     // underruns into clicks. The game suspends the context across a decode:
@@ -63,6 +105,7 @@
     miniquad_add_plugin({
         register_plugin: function (importObject) {
             importObject.env.kw_audio_start = kw_audio_start;
+            importObject.env.kw_audio_lag = kw_audio_lag;
             importObject.env.kw_audio_suspend = kw_audio_suspend;
             importObject.env.kw_audio_resume = kw_audio_resume;
         },
