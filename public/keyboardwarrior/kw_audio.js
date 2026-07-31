@@ -26,6 +26,35 @@
     let anchorFrame = 0;
     let anchorTime = 0;
 
+    // Whether the game wants sound right now. False only across a blocking
+    // decode (see kw_audio_suspend). Every path that could start the context
+    // goes through resumeIfWanted, so a keypress landing mid-decode can't
+    // restart it behind the decode's back.
+    let wantRunning = true;
+
+    // Ask the browser to start (or restart) the context, if the game wants it.
+    //
+    // The condition is "not running", never "is suspended". A context created
+    // before any user gesture doesn't report "suspended" on WebKit — it reports
+    // "interrupted", a state no other engine has. Every resume here used to
+    // guard on "suspended", so on Safari not one of them ever fired: the
+    // context sat interrupted, the ScriptProcessorNode was never pulled, and
+    // because the game clock IS the mixer's frame counter (audio.rs), silence
+    // read as a stopped clock — the highway froze on READY and stayed there.
+    //
+    // "Not running" is true in every state that needs a resume, in every
+    // browser, including the interruptions WebKit raises long after startup
+    // (output device change, display sleep) that would otherwise kill the
+    // audio mid-song.
+    function resumeIfWanted() {
+        if (!ctx || !wantRunning || ctx.state === "running") return;
+        // A refusal is normal — resume() outside a user gesture is denied, and
+        // the next keypress calls this again — so the rejection is swallowed
+        // rather than surfacing as an unhandled promise.
+        const p = ctx.resume();
+        if (p && p.catch) p.catch(function () {});
+    }
+
     function kw_audio_start() {
         ctx = new (window.AudioContext || window.webkitAudioContext)();
         // 2048-frame pulls: ~43 ms at 48 kHz. Small enough that the game
@@ -60,17 +89,22 @@
         };
         node.connect(ctx.destination);
 
-        // Autoplay policy: a context created before any user gesture starts
-        // suspended; resume it on the first key press or click.
-        const resume = function () {
-            if (ctx.state === "suspended") ctx.resume();
-            window.removeEventListener("keydown", resume);
-            window.removeEventListener("pointerdown", resume);
-            window.removeEventListener("touchstart", resume);
-        };
-        window.addEventListener("keydown", resume);
-        window.addEventListener("pointerdown", resume);
-        window.addEventListener("touchstart", resume);
+        // Autoplay policy: a context created before any user gesture doesn't
+        // start; the first key press or click is what's allowed to start it.
+        //
+        // The listeners stay registered for the whole session rather than
+        // removing themselves on the first event. A resume can be refused —
+        // and on WebKit the state it has to climb out of ("interrupted") can
+        // be re-entered at any time, when the output device changes or the
+        // display sleeps. One-shot listeners meant the demo got exactly one
+        // chance at sound and, if that chance failed, never got another.
+        window.addEventListener("keydown", resumeIfWanted);
+        window.addEventListener("pointerdown", resumeIfWanted);
+        window.addEventListener("touchstart", resumeIfWanted);
+        // An interruption that arrives while the tab has focus needs no gesture
+        // to recover from, so don't make the player press a key to get the
+        // music back.
+        ctx.addEventListener("statechange", resumeIfWanted);
 
         return ctx.sampleRate;
     }
@@ -93,13 +127,22 @@
     // loop for hundreds of ms, so onaudioprocess can't fire and the pipeline
     // underruns into clicks. The game suspends the context across a decode:
     // suspend halts the rendering thread (its own thread, unblocked by the
-    // stalled main thread), so the gap is clean silence instead. Both guard on
-    // state so a stray call while already suspended/running is a no-op.
+    // stalled main thread), so the gap is clean silence instead.
+    //
+    // The pair tracks intent in `wantRunning` rather than reading ctx.state,
+    // because state lags the call: suspend() and resume() are both async, and
+    // a resume that read a state the pending suspend hadn't reached yet would
+    // decline to fire and leave the context parked for good — a decode that
+    // silenced the rest of the session.
     function kw_audio_suspend() {
-        if (ctx && ctx.state === "running") ctx.suspend();
+        wantRunning = false;
+        if (!ctx) return;
+        const p = ctx.suspend();
+        if (p && p.catch) p.catch(function () {});
     }
     function kw_audio_resume() {
-        if (ctx && ctx.state === "suspended") ctx.resume();
+        wantRunning = true;
+        resumeIfWanted();
     }
 
     // The demo's one non-audio hook: the menu's "download to expand library"
