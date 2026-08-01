@@ -1,12 +1,129 @@
-// Web audio backend for the browser demo: a ScriptProcessorNode pulls the
-// game's own Rust mixer (audio::Mixer, exported as kw_render) for every
-// buffer, so the browser plays the exact same mix the native cpal callback
-// produces — and the mixer's frame counter stays the game clock.
+// Browser-side support for the demo: its display-paced frame clock, followed
+// by the Web Audio backend. A ScriptProcessorNode pulls the game's own Rust
+// mixer (audio::Mixer, exported as kw_render) for every buffer, so the browser
+// plays the exact same mix the native cpal callback produces — and the mixer's
+// frame counter stays the game clock.
 //
 // Registered as a miniquad plugin so `kw_audio_start` exists as a wasm
 // import before the module is instantiated.
 "use strict";
 (function () {
+    // Chrome's last Mojave build has a long-standing high-DPI WebGL
+    // presentation bug: the canvas visibly judders even while rAF and Chrome's
+    // own frame counters remain at 60 Hz. On the affected ANGLE/OpenGL path,
+    // a bare-canvas reproduction becomes smooth when it draws its background
+    // instead of issuing glClear. Detect that narrow path here; current Mac
+    // Chrome uses ANGLE/Metal and other browsers retain their normal clear.
+    let avoidDefaultClear = false;
+    function legacyMacChromiumOpenGL(context) {
+        const ua = navigator.userAgent || "";
+        const version = ua.match(/(?:Chrome|Chromium)\/(\d+)/);
+        if (
+            navigator.vendor !== "Google Inc." ||
+            !/Macintosh/.test(ua) ||
+            !version
+        ) {
+            return false;
+        }
+        let renderer = "";
+        try {
+            const info = context.getExtension("WEBGL_debug_renderer_info");
+            if (info) {
+                renderer = String(
+                    context.getParameter(info.UNMASKED_RENDERER_WEBGL) || ""
+                );
+            }
+        } catch (_) {
+            // Privacy settings may hide the unmasked renderer.
+        }
+        if (/\bMetal\b/i.test(renderer)) return false;
+        if (/\bANGLE\b/i.test(renderer) && /\bOpenGL\b/i.test(renderer)) return true;
+        // Chrome 116 is the final Chrome available on Mojave and uses this
+        // legacy path. Only use the version fallback when no renderer was
+        // exposed; a known non-OpenGL backend must not be opted in.
+        return !renderer && Number(version[1]) <= 116;
+    }
+
+    // The game paints every pixel, so its WebGL surface is opaque even when it
+    // is embedded in a larger page. Miniquad asks for the browser defaults,
+    // which include alpha; Chrome must then blend each new canvas frame with
+    // everything underneath it. That distinction is invisible on the plain
+    // full-window demo, but expensive and scheduling-sensitive on the personal
+    // site, where the canvas sits over gradients and a masked paper texture.
+    // The browser default also enables multisample antialiasing, while the
+    // native miniquad configuration uses one sample. Match that native path
+    // and avoid resolving a full-size multisampled Retina framebuffer every
+    // frame. Depth behavior remains untouched.
+    const gameCanvas = document.querySelector("#glcanvas");
+    if (gameCanvas) {
+        const getContext = gameCanvas.getContext.bind(gameCanvas);
+        gameCanvas.getContext = function (kind, attrs) {
+            const isWebGL =
+                kind === "webgl" || kind === "webgl2" || kind === "experimental-webgl";
+            if (isWebGL) {
+                attrs = Object.assign({}, attrs, { alpha: false, antialias: false });
+            }
+            const context = getContext(kind, attrs);
+            if (isWebGL && context) {
+                const override = new URLSearchParams(location.search).get("kw-clear");
+                avoidDefaultClear =
+                    override === "on" ||
+                    (override !== "off" && legacyMacChromiumOpenGL(context));
+                // Read-only diagnostic handle: useful from the console without
+                // putting logging or measurement in the frame loop.
+                window.__kwAvoidDefaultClear = avoidDefaultClear;
+            }
+            return context;
+        };
+    }
+
+    // macroquad 0.4.16/miniquad 0.4.11 unconditionally begins every frame
+    // with one color-only clear before the app draws. Suppress exactly that
+    // first 0x4000 clear on the affected browser, then let every subsequent
+    // clear through. This preserves future render-target/depth clears and
+    // fails safely if the dependency ever changes the first clear's mask.
+    const runGlClear = importObject.env.glClear;
+    let suppressNextColorClear = false;
+    importObject.env.glClear = function (mask) {
+        if (suppressNextColorClear) {
+            suppressNextColorClear = false;
+            if (mask === 0x4000) return;
+        }
+        return runGlClear(mask);
+    };
+
+    // Miniquad throws away requestAnimationFrame's timestamp and implements
+    // its Rust-side clock with Date.now(). Chrome can deliver callbacks at
+    // uneven points inside otherwise evenly spaced display frames, especially
+    // on older Intel Macs; sampling the callback's arrival time then bakes the
+    // browser's scheduling noise into every animation position.
+    //
+    // Keep miniquad's clock monotonic, and while a frame is being drawn pin it
+    // to the animation timestamp Chrome supplied for that frame. This fixes
+    // the clock at the boundary rather than special-casing the song timeline:
+    // get_time(), get_frame_time(), UI motion, and gameplay all agree on the
+    // same display-paced instant. Code running outside rAF continues to see
+    // the live performance clock.
+    const clockEpoch = Number.isFinite(performance.timeOrigin)
+        ? performance.timeOrigin
+        : Date.now() - performance.now();
+    let frameTime = null;
+    const runAnimationFrame = animation;
+    animation = function (timestamp) {
+        frameTime = timestamp;
+        suppressNextColorClear = avoidDefaultClear;
+        try {
+            runAnimationFrame(timestamp);
+        } finally {
+            suppressNextColorClear = false;
+            frameTime = null;
+        }
+    };
+    importObject.env.now = function () {
+        const now = frameTime === null ? performance.now() : frameTime;
+        return (clockEpoch + now) / 1000;
+    };
+
     let ctx = null;
     let node = null;
 
@@ -60,7 +177,13 @@
         // 2048-frame pulls: ~43 ms at 48 kHz. Small enough that the game
         // clock stays smooth, large enough that a main-thread callback
         // doesn't underrun every time a frame runs long.
-        node = ctx.createScriptProcessor(2048, 0, 2);
+        //
+        // The override is the stutter harness's (web/kw_diag.js, loaded only
+        // by the diagnostic page): raising this is the standard remedy for a
+        // main-thread callback that can't meet its deadline, so being able to
+        // try it is how we find out whether that is what's happening. Absent
+        // the harness the global doesn't exist and the demo takes 2048.
+        node = ctx.createScriptProcessor((window.__kw_diag_buf | 0) || 2048, 0, 2);
         node.onaudioprocess = function (e) {
             // Pull counter, visible from the console for sync debugging
             window.__kw_pulls = (window.__kw_pulls || 0) + 1;
@@ -88,6 +211,13 @@
             }
         };
         node.connect(ctx.destination);
+
+        // Handle for the stutter harness, which wraps onaudioprocess to time
+        // it (web/kw_diag.js). Published rather than measured here on purpose:
+        // this callback is the demo's tightest deadline, and it must not carry
+        // an `if (measuring)` for the benefit of a page that normally isn't
+        // loaded. Nothing reads this in the shipping demo.
+        window.__kw_audio = { ctx: ctx, node: node };
 
         // Autoplay policy: a context created before any user gesture doesn't
         // start; the first key press or click is what's allowed to start it.
@@ -145,6 +275,13 @@
         resumeIfWanted();
     }
 
+    // Rust uses the same decision to replace its own background clear with an
+    // opaque full-screen quad. Together the two sides produce zero glClear
+    // calls; changing only one side would leave the reproducer's trigger.
+    function kw_webgl_avoid_default_clear() {
+        return avoidDefaultClear ? 1 : 0;
+    }
+
     // The demo's one non-audio hook: the menu's "download to expand library"
     // row opens the project page. It rides in this file rather than a script
     // of its own because the portfolio site serves its own index.html — a new
@@ -176,6 +313,7 @@
             importObject.env.kw_audio_lag = kw_audio_lag;
             importObject.env.kw_audio_suspend = kw_audio_suspend;
             importObject.env.kw_audio_resume = kw_audio_resume;
+            importObject.env.kw_webgl_avoid_default_clear = kw_webgl_avoid_default_clear;
             importObject.env.kw_open_url = kw_open_url;
         },
         version: 1,
