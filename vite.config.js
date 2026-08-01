@@ -8,7 +8,6 @@ export default defineConfig({
       input: {
         main: resolve(import.meta.dirname, 'index.html'),
         keyboardwarrior: resolve(import.meta.dirname, 'keyboardwarrior/index.html'),
-        keyboardwarriorBare: resolve(import.meta.dirname, 'keyboardwarrior-bare/index.html'),
       },
     },
   },
