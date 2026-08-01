@@ -65,13 +65,7 @@
             }
             const context = getContext(kind, attrs);
             if (isWebGL && context) {
-                const override = new URLSearchParams(location.search).get("kw-clear");
-                avoidDefaultClear =
-                    override === "on" ||
-                    (override !== "off" && legacyMacChromiumOpenGL(context));
-                // Read-only diagnostic handle: useful from the console without
-                // putting logging or measurement in the frame loop.
-                window.__kwAvoidDefaultClear = avoidDefaultClear;
+                avoidDefaultClear = legacyMacChromiumOpenGL(context);
             }
             return context;
         };
@@ -177,13 +171,7 @@
         // 2048-frame pulls: ~43 ms at 48 kHz. Small enough that the game
         // clock stays smooth, large enough that a main-thread callback
         // doesn't underrun every time a frame runs long.
-        //
-        // The override is the stutter harness's (web/kw_diag.js, loaded only
-        // by the diagnostic page): raising this is the standard remedy for a
-        // main-thread callback that can't meet its deadline, so being able to
-        // try it is how we find out whether that is what's happening. Absent
-        // the harness the global doesn't exist and the demo takes 2048.
-        node = ctx.createScriptProcessor((window.__kw_diag_buf | 0) || 2048, 0, 2);
+        node = ctx.createScriptProcessor(2048, 0, 2);
         node.onaudioprocess = function (e) {
             // Pull counter, visible from the console for sync debugging
             window.__kw_pulls = (window.__kw_pulls || 0) + 1;
@@ -211,13 +199,6 @@
             }
         };
         node.connect(ctx.destination);
-
-        // Handle for the stutter harness, which wraps onaudioprocess to time
-        // it (web/kw_diag.js). Published rather than measured here on purpose:
-        // this callback is the demo's tightest deadline, and it must not carry
-        // an `if (measuring)` for the benefit of a page that normally isn't
-        // loaded. Nothing reads this in the shipping demo.
-        window.__kw_audio = { ctx: ctx, node: node };
 
         // Autoplay policy: a context created before any user gesture doesn't
         // start; the first key press or click is what's allowed to start it.
