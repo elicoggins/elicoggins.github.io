@@ -8,6 +8,45 @@
 // import before the module is instantiated.
 "use strict";
 (function () {
+    const SETTINGS_KEY = "keyboardwarrior.settings.v1";
+    let settingsFallback = null;
+    let settingsRead = null;
+
+    function readStoredSettings() {
+        try {
+            const stored = window.localStorage.getItem(SETTINGS_KEY);
+            if (stored !== null) settingsFallback = stored;
+        } catch (_) {
+            // Private browsing and embedded contexts can expose localStorage
+            // but throw on access. The in-memory copy still preserves every
+            // setting for the rest of this page session.
+        }
+        return settingsFallback;
+    }
+
+    function kw_settings_load_len() {
+        const json = readStoredSettings();
+        settingsRead = json === null ? null : new TextEncoder().encode(json);
+        return settingsRead === null ? 0 : settingsRead.length;
+    }
+
+    function kw_settings_load(ptr, len) {
+        if (settingsRead === null) return;
+        const out = new Uint8Array(wasm_memory.buffer, ptr, len);
+        out.set(settingsRead.subarray(0, len));
+        settingsRead = null;
+    }
+
+    function kw_settings_save(ptr, len) {
+        const bytes = new Uint8Array(wasm_memory.buffer, ptr, len);
+        settingsFallback = new TextDecoder().decode(bytes);
+        try {
+            window.localStorage.setItem(SETTINGS_KEY, settingsFallback);
+        } catch (_) {
+            // Keep the session fallback above when durable storage is denied.
+        }
+    }
+
     // Chrome's last Mojave build has a long-standing high-DPI WebGL
     // presentation bug: the canvas visibly judders even while rAF and Chrome's
     // own frame counters remain at 60 Hz. On the affected ANGLE/OpenGL path,
@@ -296,6 +335,9 @@
             importObject.env.kw_audio_resume = kw_audio_resume;
             importObject.env.kw_webgl_avoid_default_clear = kw_webgl_avoid_default_clear;
             importObject.env.kw_open_url = kw_open_url;
+            importObject.env.kw_settings_load_len = kw_settings_load_len;
+            importObject.env.kw_settings_load = kw_settings_load;
+            importObject.env.kw_settings_save = kw_settings_save;
         },
         version: 1,
         name: "kw_audio",
