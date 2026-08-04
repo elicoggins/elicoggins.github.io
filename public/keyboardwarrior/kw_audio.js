@@ -8,44 +8,59 @@
 // import before the module is instantiated.
 "use strict";
 (function () {
-    const SETTINGS_KEY = "keyboardwarrior.settings.v1";
-    let settingsFallback = null;
-    let settingsRead = null;
+    // One durable JSON string under one localStorage key, exposed to Rust as
+    // the three imports a wasm string round-trip needs: ask the length, fill a
+    // buffer Rust has sized to it, and write one back.
+    //
+    // The demo keeps two of these — the settings blob and the score table.
+    // They're separate keys rather than one because they're written at
+    // completely different rates (a settings change is rare, a score lands at
+    // the end of every run) and because a parse failure in one must not cost
+    // the player the other.
+    function makeStore(key) {
+        // Survives for the page session when durable storage is unavailable.
+        let fallback = null;
+        // The encoded bytes between a `load_len` and the `load` that takes them.
+        let pending = null;
 
-    function readStoredSettings() {
-        try {
-            const stored = window.localStorage.getItem(SETTINGS_KEY);
-            if (stored !== null) settingsFallback = stored;
-        } catch (_) {
-            // Private browsing and embedded contexts can expose localStorage
-            // but throw on access. The in-memory copy still preserves every
-            // setting for the rest of this page session.
+        function read() {
+            try {
+                const stored = window.localStorage.getItem(key);
+                if (stored !== null) fallback = stored;
+            } catch (_) {
+                // Private browsing and embedded contexts can expose
+                // localStorage but throw on access. The in-memory copy still
+                // preserves everything for the rest of this page session.
+            }
+            return fallback;
         }
-        return settingsFallback;
+
+        return {
+            load_len() {
+                const json = read();
+                pending = json === null ? null : new TextEncoder().encode(json);
+                return pending === null ? 0 : pending.length;
+            },
+            load(ptr, len) {
+                if (pending === null) return;
+                const out = new Uint8Array(wasm_memory.buffer, ptr, len);
+                out.set(pending.subarray(0, len));
+                pending = null;
+            },
+            save(ptr, len) {
+                const bytes = new Uint8Array(wasm_memory.buffer, ptr, len);
+                fallback = new TextDecoder().decode(bytes);
+                try {
+                    window.localStorage.setItem(key, fallback);
+                } catch (_) {
+                    // Keep the session fallback above when storage is denied.
+                }
+            },
+        };
     }
 
-    function kw_settings_load_len() {
-        const json = readStoredSettings();
-        settingsRead = json === null ? null : new TextEncoder().encode(json);
-        return settingsRead === null ? 0 : settingsRead.length;
-    }
-
-    function kw_settings_load(ptr, len) {
-        if (settingsRead === null) return;
-        const out = new Uint8Array(wasm_memory.buffer, ptr, len);
-        out.set(settingsRead.subarray(0, len));
-        settingsRead = null;
-    }
-
-    function kw_settings_save(ptr, len) {
-        const bytes = new Uint8Array(wasm_memory.buffer, ptr, len);
-        settingsFallback = new TextDecoder().decode(bytes);
-        try {
-            window.localStorage.setItem(SETTINGS_KEY, settingsFallback);
-        } catch (_) {
-            // Keep the session fallback above when durable storage is denied.
-        }
-    }
+    const settingsStore = makeStore("keyboardwarrior.settings.v1");
+    const scoresStore = makeStore("keyboardwarrior.scores.v1");
 
     // Chrome's last Mojave build has a long-standing high-DPI WebGL
     // presentation bug: the canvas visibly judders even while rAF and Chrome's
@@ -335,9 +350,12 @@
             importObject.env.kw_audio_resume = kw_audio_resume;
             importObject.env.kw_webgl_avoid_default_clear = kw_webgl_avoid_default_clear;
             importObject.env.kw_open_url = kw_open_url;
-            importObject.env.kw_settings_load_len = kw_settings_load_len;
-            importObject.env.kw_settings_load = kw_settings_load;
-            importObject.env.kw_settings_save = kw_settings_save;
+            importObject.env.kw_settings_load_len = settingsStore.load_len;
+            importObject.env.kw_settings_load = settingsStore.load;
+            importObject.env.kw_settings_save = settingsStore.save;
+            importObject.env.kw_scores_load_len = scoresStore.load_len;
+            importObject.env.kw_scores_load = scoresStore.load;
+            importObject.env.kw_scores_save = scoresStore.save;
         },
         version: 1,
         name: "kw_audio",
