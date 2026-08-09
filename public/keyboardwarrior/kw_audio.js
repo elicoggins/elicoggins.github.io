@@ -52,8 +52,10 @@
                 fallback = new TextDecoder().decode(bytes);
                 try {
                     window.localStorage.setItem(key, fallback);
+                    return 1;
                 } catch (_) {
                     // Keep the session fallback above when storage is denied.
+                    return 0;
                 }
             },
         };

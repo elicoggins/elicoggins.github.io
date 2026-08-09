@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta
       name="description"
       content="Keyboard Warrior — a free rhythm typing game built in Rust. Type letters in time with the music. Playable in the browser, with native builds for macOS, Windows and Linux."
     />
     <meta name="author" content="Elijah Coggins" />
     <link rel="canonical" href="https://elicoggins.github.io/keyboardwarrior/" />
-    <meta name="theme-color" content="#f6f1e6" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#14140f" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#0b0b0d" />
+    <meta name="color-scheme" content="dark" />
 
     <meta property="og:title" content="Keyboard Warrior — a rhythm typing game in Rust" />
     <meta
@@ -27,7 +27,10 @@
     />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Keyboard Warrior — a rhythm typing game in Rust" />
+    <meta
+      property="og:image:alt"
+      content="Keyboard Warrior gameplay — lettered notes falling toward a strike line"
+    />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Keyboard Warrior — a rhythm typing game in Rust" />
     <meta
@@ -39,8 +42,16 @@
       content="https://elicoggins.github.io/og-keyboardwarrior.png"
     />
 
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Keyboard Warrior · Elijah Coggins</title>
+    <link rel="icon" type="image/png" sizes="256x256" href="/keyboardwarrior/icon.png" />
+    <link rel="apple-touch-icon" href="/keyboardwarrior/icon.png" />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/keyboardwarrior/proggyclean.woff2"
+      crossorigin
+    />
+    <title>Keyboard Warrior — a rhythm typing game</title>
 
     <script type="application/ld+json">
       {
@@ -50,10 +61,12 @@
         "description": "A rhythm typing game built in Rust. Each note carries a letter; type it in time with the music. Free, lightweight, and compatible with existing Clone Hero and YARG chart libraries.",
         "url": "https://elicoggins.github.io/keyboardwarrior/",
         "image": "https://elicoggins.github.io/og-keyboardwarrior.png",
+        "screenshot": "https://elicoggins.github.io/keyboardwarrior/gameplay.jpg",
         "genre": ["Rhythm game", "Typing game"],
         "gamePlatform": ["Web browser", "macOS", "Windows", "Linux"],
         "applicationCategory": "Game",
         "operatingSystem": "macOS, Windows, Linux, Web",
+        "playMode": "SinglePlayer",
         "author": {
           "@type": "Person",
           "name": "Elijah Coggins",
@@ -78,398 +91,708 @@
 
       gtag('config', 'G-KY646TMGR5');
     </script>
-    <script>
-      // Match the main site's theme choice before first paint.
-      (() => {
-        let stored = null;
-        try { stored = localStorage.getItem('theme'); } catch { /* ignore */ }
-        const dark = stored
-          ? stored === 'dark'
-          : window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-      })();
-    </script>
     <style>
+      /* The page is set in the game's own typeface. assets/ProggyClean.ttf is
+         what examples/make_font.rs bakes assets/font.png from, so every word
+         here is drawn with the letterforms the game draws with — the page and
+         the canvas stop being two different documents. Tristan Grimmer's
+         ProggyClean, MIT, the same file macroquad ships. */
       @font-face {
-        font-family: 'IBM Plex Mono';
+        font-family: 'ProggyClean';
         font-style: normal;
-        font-display: swap;
         font-weight: 400;
-        src: url('/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2'),
-             url('/fonts/ibm-plex-mono-latin-400-normal.woff') format('woff');
-      }
-      @font-face {
-        font-family: 'IBM Plex Mono';
-        font-style: normal;
         font-display: swap;
-        font-weight: 500;
-        src: url('/fonts/ibm-plex-mono-latin-500-normal.woff2') format('woff2'),
-             url('/fonts/ibm-plex-mono-latin-500-normal.woff') format('woff');
+        src: url('/keyboardwarrior/proggyclean.woff2') format('woff2');
       }
 
+      /* src/theme.rs, "EMBER": the near-black base, the two ember lanes and the
+         two slate ones, plus the cyan the app icon and the menu subtitle use. */
       :root {
-        color-scheme: light;
-        --paper: #f6f1e6;
-        --paper-soft: #fcf7ef;
-        --ink: #181817;
-        --muted: #6d6961;
-        --hairline: rgba(24, 24, 23, 0.36);
-        --press: rgba(24, 24, 23, 0.08);
-        --accent: #7e2422;
-        --font-text: "Berkeley Mono", "Courier New", monospace;
-        --font-small: "Berkeley Mono", "IBM Plex Mono", "Courier New", monospace;
-      }
-
-      :root[data-theme="dark"] {
         color-scheme: dark;
-        --paper: #14140f;
-        --paper-soft: #1c1c17;
-        --ink: #ecece7;
-        --muted: #8a8680;
-        --hairline: rgba(236, 236, 231, 0.28);
-        --press: rgba(236, 236, 231, 0.08);
-        --accent: #c98a4a;
+        --bg: #0b0b0d;
+        --ink: #d9e0eb;
+        --bright: #f2f5fa;
+        --dim: #a3b3c7;
+        --faint: #6a7180;
+        --line: rgba(217, 224, 235, 0.14);
+        --amber: #fdb840;
+        --ember: #fa731a;
+        --steel: #577ab8;
+        --cyan: #7fd3f7;
+        --font: 'ProggyClean', ui-monospace, 'Courier New', monospace;
+        --gutter: clamp(1rem, 4vw, 2.5rem);
       }
 
       * { box-sizing: border-box; }
 
-      /* The page title is carried by the letterhead, which is styled type
-         rather than a heading. Give the document a real <h1> for screen
-         readers and crawlers without changing the layout. */
+      html { background: var(--bg); -webkit-text-size-adjust: 100%; }
+
+      body {
+        margin: 0;
+        min-height: 100svh;
+        overflow-x: hidden;
+        overscroll-behavior-y: none;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--font);
+        font-size: 1rem;
+        line-height: 1.65;
+        font-synthesis: none;
+      }
+
       .sr-only {
         position: absolute;
         width: 1px;
         height: 1px;
         margin: -1px;
-        padding: 0;
         overflow: hidden;
         clip: rect(0, 0, 0, 0);
         white-space: nowrap;
-        border: 0;
       }
 
-      html {
-        min-height: 100%;
-        background: var(--paper);
-        color: var(--ink);
-        font-family: var(--font-small);
-        font-synthesis: none;
-        text-rendering: geometricPrecision;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
-
-      body {
-        margin: 0;
-        min-height: 100svh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: max(20px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right))
-          max(20px, env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
-      }
-
-      .paper-field {
+      /* The highway's own backdrop: a 46px rule grid and a thin scatter of
+         stars, faded out from the middle the way the game fades its own. */
+      .field {
         position: fixed;
         inset: 0;
         z-index: -1;
-        background:
-          radial-gradient(circle at 23% 18%, rgba(255, 255, 255, 0.54), transparent 28%),
-          radial-gradient(circle at 78% 81%, rgba(132, 119, 91, 0.12), transparent 29%),
-          linear-gradient(115deg, rgba(255, 255, 255, 0.16), transparent 42%),
-          var(--paper);
+        background: var(--bg);
       }
 
-      .paper-field::before {
+      .field::before,
+      .field::after {
+        content: "";
         position: absolute;
         inset: 0;
-        content: "";
-        opacity: 0.23;
+      }
+
+      .field::before {
+        opacity: 0.55;
         background-image:
-          linear-gradient(rgba(24, 24, 23, 0.04) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(24, 24, 23, 0.025) 1px, transparent 1px);
-        background-size: 42px 42px, 42px 42px;
-        mask-image: radial-gradient(circle at center, black, transparent 72%);
+          linear-gradient(rgba(217, 224, 235, 0.045) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(217, 224, 235, 0.035) 1px, transparent 1px);
+        background-size: 46px 46px, 46px 46px;
+        mask-image: radial-gradient(ellipse at 50% 30%, black 5%, transparent 75%);
       }
 
-      [data-theme="dark"] .paper-field {
-        background: var(--paper);
+      .field::after {
+        opacity: 0.5;
+        background-image: radial-gradient(1px 1px at 17% 12%, rgba(253, 184, 64, 0.5), transparent),
+          radial-gradient(1px 1px at 63% 8%, rgba(217, 224, 235, 0.45), transparent),
+          radial-gradient(1px 1px at 88% 27%, rgba(217, 224, 235, 0.3), transparent),
+          radial-gradient(1px 1px at 34% 41%, rgba(253, 184, 64, 0.35), transparent),
+          radial-gradient(1px 1px at 7% 58%, rgba(217, 224, 235, 0.35), transparent),
+          radial-gradient(1px 1px at 79% 63%, rgba(217, 224, 235, 0.28), transparent),
+          radial-gradient(1px 1px at 47% 77%, rgba(253, 184, 64, 0.3), transparent),
+          radial-gradient(1px 1px at 92% 88%, rgba(217, 224, 235, 0.3), transparent),
+          radial-gradient(1px 1px at 24% 93%, rgba(217, 224, 235, 0.25), transparent);
       }
 
-      [data-theme="dark"] .paper-field::before {
-        opacity: 0.16;
-        background-image:
-          linear-gradient(rgba(236, 236, 231, 0.04) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(236, 236, 231, 0.025) 1px, transparent 1px);
-      }
+      /* --------------------------------------------------------- the stage */
 
-      .page {
-        width: min(1080px, 100%);
+      .stage {
+        position: relative;
         display: flex;
         flex-direction: column;
-        gap: 1rem;
-        flex: 1;
+        height: 100svh;
+        min-height: 28rem;
       }
 
-      .letterhead {
-        display: flex;
-        justify-content: space-between;
-        gap: 1rem;
-        font-size: clamp(0.64rem, 0.78vw, 0.76rem);
-        letter-spacing: 0.18em;
+      /* Nothing sits above the picture. The game draws its own title, and the
+         demo carries its own download row — a bar up here could only repeat
+         one of them. Most people arrive on this page directly rather than
+         through the index, so it is not a stop on a journey either. */
+
+      /* The game draws a key as a hard-edged square: a low-alpha fill of the
+         lane colour, a border at three times that alpha, and the letter inside
+         (tutorial.rs, draw_keyboard_legend). These are that object stretched to
+         hold a word, plus the offset shadow an old panel would have had — so
+         pressing one travels the length of its own shadow, which is the right
+         gesture for a game about pressing keys. No radius anywhere: the game
+         draws rectangles, not rounded rectangles. */
+      .cap {
+        appearance: none;
+        display: inline-block;
+        border: 2px solid rgba(217, 224, 235, 0.45);
+        background: rgba(217, 224, 235, 0.1);
+        box-shadow: 3px 3px 0 rgba(217, 224, 235, 0.22);
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.8125rem;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
-        color: var(--ink);
-        border: 0;
-        border-bottom: 1px solid var(--hairline);
-        padding: 0 0 0.6rem;
-        background: transparent;
-        text-align: left;
-        transition: color 180ms ease;
-      }
-
-      a.letterhead,
-      a.letterhead:visited {
-        display: flex;
+        text-decoration: none;
+        padding: 0.5rem 1.15rem;
+        line-height: 1.3;
         cursor: pointer;
-        color: var(--ink);
+        white-space: nowrap;
+        transition: background-color 120ms ease, border-color 120ms ease,
+          color 120ms ease, box-shadow 90ms ease, transform 90ms ease;
+      }
+      .cap:hover, .cap:focus-visible {
+        background: rgba(217, 224, 235, 0.16);
+        border-color: rgba(217, 224, 235, 0.7);
+        color: var(--bright);
+      }
+      .cap:active {
+        transform: translate(3px, 3px);
+        box-shadow: 0 0 0 rgba(217, 224, 235, 0);
       }
 
-      a.letterhead:hover,
-      a.letterhead:focus-visible {
-        color: var(--accent);
+      .cap--gold {
+        border-color: rgba(253, 184, 64, 0.55);
+        background: rgba(253, 184, 64, 0.1);
+        box-shadow: 3px 3px 0 rgba(253, 184, 64, 0.28);
+        color: var(--amber);
+      }
+      .cap--gold:hover, .cap--gold:focus-visible {
+        background: rgba(253, 184, 64, 0.18);
+        border-color: rgba(253, 184, 64, 0.85);
+        color: var(--amber);
+      }
+      .cap--gold:active { box-shadow: 0 0 0 rgba(253, 184, 64, 0); }
+
+      /* A thumb needs more than a line of text to aim at. */
+      @media (pointer: coarse) {
+        .cap { padding: 0.85rem 1.5rem; }
       }
 
-      a.letterhead:focus-visible {
-        outline: 1px solid var(--ink);
-        outline-offset: 4px;
-      }
-
-      .letterhead__home::before {
-        content: "\2190\00a0";
-      }
-
-      .desc {
-        margin: 0;
-        font-size: 0.8rem;
-        color: var(--muted);
-        line-height: 1.5;
-      }
-
-      .frame {
+      /* Height is what the game is short of — gfx::ui() scales the whole layout
+         by min(w/1100, h/800), so on a laptop the viewport's height decides how
+         big the notes are. The width cap only keeps an ultrawide from stranding
+         the highway in a very long strip; the bands beside it are the game's own
+         background colour, so the cap cannot be seen. */
+      .screen {
         position: relative;
-        border: 1px solid var(--ink);
-        background: #000;
-        width: 100%;
-        aspect-ratio: 3 / 2;
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        justify-content: center;
         overflow: hidden;
       }
 
       #glcanvas {
-        position: absolute;
-        inset: 0;
+        display: block;
         width: 100%;
         height: 100%;
-        display: block;
+        max-width: 190vh;
         outline: none;
+        background: var(--bg);
+        touch-action: none;
       }
 
-      .frame__notice {
+      /* ESC is the game's pause key (playing.rs), so fullscreen cannot put its
+         way in or out on the keyboard without fighting gameplay. The control
+         drops down over the top of the picture when the pointer moves and
+         retracts when it settles, and it is the only thing that offers
+         fullscreen — so entering and leaving are the same gesture in the same
+         place. */
+      .drop {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.6rem clamp(0.8rem, 2.5vw, 1.4rem);
+        background: linear-gradient(180deg, rgba(11, 11, 13, 0.95) 30%, rgba(11, 11, 13, 0));
+        transform: translateY(-100%);
+        transition: transform 220ms ease;
+      }
+      .screen[data-drop="1"] .drop { transform: none; }
+
+      /* -------------------------------------------------- unsupported / error */
+
+      .fallback {
         position: absolute;
         inset: 0;
+        z-index: 6;
         display: none;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 0.6rem;
+        gap: 1.1rem;
+        padding: clamp(1.2rem, 5vw, 2.5rem);
         text-align: center;
-        padding: 1.5rem;
-        color: var(--ink);
-        font-size: 0.8rem;
-        line-height: 1.6;
+        background: var(--bg);
       }
 
-      .frame[data-state='pending'] .frame__notice--pending,
-      .frame[data-state='desktop-only'] .frame__notice--desktop {
-        display: flex;
+      /* On a phone the wide frame renders at about 18% and the gems come out
+         ten pixels across — a dark rectangle rather than a rhythm game. The
+         narrow source is the same frame cropped to the highway, so the letters,
+         the strike line and the word being typed all survive the width. */
+      .fallback picture { width: min(36rem, 100%); }
+
+      .fallback img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
       }
 
-      .frame[data-state='pending'],
-      .frame[data-state='desktop-only'] {
-        background: var(--paper-soft);
-      }
-
-      .frame[data-state='pending'] #glcanvas,
-      .frame[data-state='desktop-only'] #glcanvas {
-        visibility: hidden;
-      }
-
-      /* On mobile the game is desktop-only; give the frame a comfortable height
-         for the notice instead of the 4:3 canvas box. */
-      .frame[data-state='desktop-only'] {
-        aspect-ratio: auto;
-        min-height: 15rem;
-      }
-
-      .frame__notice .stamp {
-        border: 1px solid var(--hairline);
-        padding: 0.35rem 0.8rem;
-        font-size: 0.65rem;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        color: var(--muted);
-      }
-
-      .footer-links {
-        display: flex;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 0.8rem;
-        font-size: 0.75rem;
-        letter-spacing: 0.06em;
-        border-top: 1px solid var(--hairline);
-        padding-top: 0.7rem;
-      }
-
-      a,
-      a:visited {
-        color: inherit;
-        text-decoration: none;
-        border-bottom: 1px solid color-mix(in srgb, var(--ink) 42%, transparent);
-      }
-      a:hover { color: var(--accent); border-bottom-color: currentColor; }
-
-      .hint {
-        font-size: 0.7rem;
-        letter-spacing: 0.06em;
-        color: var(--muted);
-      }
-
-      /* Attribution for the bundled songs. Every one is Creative Commons, and
-         all the licenses used require credit, so this is the notice — small,
-         but present rather than buried in the repo. */
-      .credits {
-        margin: 0.75rem 0 0;
-        font-size: 0.8rem;
-        line-height: 1.5;
-        color: var(--muted);
-      }
-
-      .credits dt {
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        font-size: 0.62rem;
-        color: var(--ink);
-        margin-bottom: 0.35rem;
-      }
-
-      .credits dd {
+      .fallback p {
         margin: 0;
+        max-width: 32rem;
+        font-size: 0.9375rem;
+        color: var(--dim);
       }
 
-      .credits dd + dd {
-        margin-top: 0.55rem;
+      /* Qualified by the element, or the rule above out-specifies these and
+         sets the title in body copy. */
+      .fallback p.fallback__mark {
+        font-size: clamp(1.75rem, 9vw, 2.75rem);
+        line-height: 1.15;
+        letter-spacing: 0.04em;
+        color: var(--bright);
       }
 
-      .credits dd + dt {
-        margin-top: 0.7rem;
+      .fallback p.fallback__sub {
+        margin: -0.5rem 0 0.4rem;
+        font-size: clamp(1rem, 4.4vw, 1.25rem);
+        color: var(--cyan);
       }
 
+      .stage[data-mode="unsupported"] #glcanvas,
+      .stage[data-mode="unsupported"] .drop,
+      .stage[data-mode="unsupported"] .rail,
+      .stage[data-mode="error"] #glcanvas,
+      .stage[data-mode="error"] .drop { display: none; }
+
+      .stage[data-mode="unsupported"] .fallback,
+      .stage[data-mode="error"] .fallback { display: flex; }
+
+      .stage[data-mode="unsupported"] { height: auto; min-height: 0; }
+      .stage[data-mode="unsupported"] .screen { overflow: visible; }
+      .stage[data-mode="unsupported"] .fallback { position: static; width: 100%; }
+
+      .stage:fullscreen { height: 100%; background: var(--bg); }
+      .stage:fullscreen .rail { display: none; }
+      .stage:fullscreen #glcanvas { max-width: none; }
+
+      /* Safari below 16.4 only has the prefixed form, and one unknown pseudo
+         would throw away the whole selector list — so it gets its own rules. */
+      .stage:-webkit-full-screen { height: 100%; background: var(--bg); }
+      .stage:-webkit-full-screen .rail { display: none; }
+      .stage:-webkit-full-screen #glcanvas { max-width: none; }
+
+      /* The menu rules its song list off with a hairline broken by centred type
+         (see the alphabet markers in scene/menu.rs). The same rule closes the
+         picture, names the thing, and carries the way down — the wordmark is
+         welcome here because it is the one place on the page the game's own
+         title is not already on screen. Wheel events over the canvas are
+         swallowed by miniquad, so this strip is also the one place above the
+         fold that a trackpad can scroll from. */
+      .rail {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1.1rem;
+        padding: 0.9rem var(--gutter) 1rem;
+        border: 0;
+        background: transparent;
+        color: var(--faint);
+        font: inherit;
+        font-size: 0.875rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: color 140ms ease;
+      }
+      .rail::before, .rail::after {
+        content: "";
+        flex: 1 1 auto;
+        max-width: 22rem;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--line), transparent);
+      }
+      .rail:hover, .rail:focus-visible { color: var(--ink); }
+
+      /* A pair of them, one either side, so the rule stays symmetrical about
+         its own centre — and drawn in CSS rather than set as a character,
+         because the game's font atlas is printable ASCII and has no glyph
+         pointing anywhere but right. They carry the only remaining hint that
+         the page keeps going, so they breathe: 2px, slowly, which is legible
+         out of the corner of an eye and invisible when looked at directly. */
+      .rail__arrow {
+        width: 0;
+        height: 0;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 5px solid currentColor;
+        opacity: 0.75;
+        animation: nudge 2.6s ease-in-out infinite;
+        transition: opacity 160ms ease;
+      }
+
+      .rail:hover .rail__arrow,
+      .rail:focus-visible .rail__arrow { opacity: 1; }
+
+      @keyframes nudge {
+        0%, 62%, 100% { transform: translateY(0); }
+        80% { transform: translateY(2px); }
+      }
+
+      /* ---------------------------------------------------------- the notes */
+
+      /* The column is sized off the measure, not the window: ProggyClean runs
+         about 0.44em to the character, so 36rem is roughly 78 of them — long
+         enough for the GL_RENDERER note, short enough to read down. Headings
+         stay centred over it, the way the menu centres its own labels. */
+      .sheet {
+        width: min(36rem, 100%);
+        margin: 0 auto;
+        padding: clamp(1rem, 3vh, 2rem) var(--gutter) clamp(2.5rem, 7vh, 4rem);
+        text-wrap: pretty;
+      }
+
+      .lede {
+        margin: 0 0 clamp(2rem, 5vh, 3rem);
+        font-size: 1.25rem;
+        line-height: 1.55;
+        color: var(--ink);
+        text-wrap: balance;
+      }
+
+      .block { margin: 0 0 clamp(1.8rem, 4vh, 2.6rem); }
+
+      .block h2 {
+        margin: 0 0 1rem;
+        font-size: 0.875rem;
+        font-weight: 400;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        text-align: center;
+        color: var(--amber);
+      }
+
+      .block p {
+        margin: 0 0 0.9rem;
+        font-size: 1.0625rem;
+        color: var(--dim);
+      }
+      .block p:last-child { margin-bottom: 0; }
+
+      .foot {
+        display: flex;
+        justify-content: center;
+        padding-top: clamp(1.6rem, 4vh, 2.4rem);
+        font-size: 0.875rem;
+        color: var(--faint);
+      }
+
+      a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); }
+      a:hover, a:focus-visible { color: var(--amber); border-bottom-color: currentColor; }
+      .foot a { border-bottom: 0; }
+      .foot a { color: var(--faint); }
+      .foot a:hover { color: var(--ink); }
+
+      code {
+        font-family: inherit;
+        color: var(--ink);
+        background: rgba(217, 224, 235, 0.08);
+        padding: 0 0.3em;
+      }
+
+      :focus-visible { outline: 1px solid var(--amber); outline-offset: 3px; }
+
+      @media (prefers-reduced-motion: reduce) {
+        .drop { transition: none; }
+        .rail__arrow { animation: none; }
+      }
     </style>
   </head>
   <body>
-    <div class="paper-field" aria-hidden="true"></div>
+    <div class="field" aria-hidden="true"></div>
 
-    <div class="page">
-      <a class="letterhead" href="/" aria-label="Return to index">
-        <span class="letterhead__home">FILE // EC-1996</span>
-        <span>KBW-005 // KEYBOARD WARRIOR</span>
-      </a>
+    <h1 class="sr-only">Keyboard Warrior — a rhythm typing game</h1>
 
-      <h1 class="sr-only">Keyboard Warrior — a rhythm typing game in Rust</h1>
+    <div class="stage" id="stage">
+      <div class="screen" id="screen">
+        <canvas id="glcanvas" tabindex="0"></canvas>
 
-      <div class="frame" id="game-frame" data-state="pending">
-        <canvas id="glcanvas" tabindex="1"></canvas>
-        <div class="frame__notice frame__notice--pending">
-          <span class="stamp">Web build in progress</span>
-          <p>
-            The browser build of keyboard warrior is being ported.<br />
-            In the meantime, the native version is on
-            <a href="https://github.com/elicoggins/keyboardwarrior" target="_blank" rel="noopener noreferrer">GitHub</a>.
-          </p>
+        <div class="drop" id="drop">
+          <button class="cap" type="button" id="fs">Fullscreen</button>
         </div>
-        <div class="frame__notice frame__notice--desktop">
-          <span class="stamp">Desktop only</span>
-          <p>
-            keyboard warrior needs a physical keyboard, so it's playable on
+
+        <!-- Shown when the game cannot run: a touch device, or a build that
+             failed to start. Both cases lose the thing that draws the title,
+             so the card draws it instead — same words, same colours, same
+             order as the menu's own opening. -->
+        <div class="fallback" id="fallback">
+          <p class="fallback__mark">KEYBOARD WARRIOR</p>
+          <p class="fallback__sub">a rhythm typing game</p>
+          <picture>
+            <source media="(max-width: 44rem)" srcset="/keyboardwarrior/gameplay-tall.jpg" width="812" height="849" />
+            <img src="/keyboardwarrior/gameplay.jpg" width="1920" height="1080" alt="Keyboard Warrior gameplay: lettered notes falling toward a strike line, with the lyric being typed underneath" />
+          </picture>
+          <p id="fallback-copy">
+            keyboard warrior needs a physical keyboard, so it&rsquo;s playable on
             desktop only.
           </p>
+          <a
+            class="cap cap--gold"
+            href="https://github.com/elicoggins/keyboardwarrior"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
         </div>
       </div>
 
-      <p class="desc">
+      <button class="rail" type="button" id="more">
+        <span class="rail__arrow" aria-hidden="true"></span>
+        <span class="rail__label">Keyboard Warrior</span>
+        <span class="rail__arrow" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <main class="sheet">
+      <p class="lede">
         A rhythm typing game in Rust + macroquad, copying off the homework of
         Clone Hero and YARG.
       </p>
 
-      <dl class="credits">
-        <dt>Notes</dt>
-        <dd>
+      <section class="block">
+        <h2>Notes</h2>
+        <p>
           Download for free
           <a href="https://github.com/elicoggins/keyboardwarrior" target="_blank" rel="noopener noreferrer">here</a>.
-        </dd>
-        <dd>
-          This is only a demo. The game wasn't built for a browser so some sacrifices had to be made to get it running - the occasional dropped note can be expected. That problem doesn&rsquo;t exist in the full version.
-        </dd>
-        <dd>
-          Older Macs may show uneven motion in Chrome when <code>chrome://gpu</code>
-          lists <code>OpenGL</code> under <code>GL_RENDERER</code>. If so, use
-          Safari&nbsp;14.1 or later, or Chrome&nbsp;129 or later. <code>chrome://gpu</code> should then list <code>ANGLE Metal</code> under <code>GL_RENDERER</code>.
-        </dd>
+        </p>
+        <p>
+          This is only a demo. The game wasn&rsquo;t built for a browser so some
+          sacrifices had to be made to get it running. The downloadable version is
+          the ideal way to play and allows you to easily expand your song library.
+        </p>
+        <p>
+          Older Macs may show uneven motion in Chrome when
+          <code>chrome://gpu</code> lists <code>OpenGL</code> under
+          <code>GL_RENDERER</code>. If so, use Safari&nbsp;14.1 or later, or
+          Chrome&nbsp;129 or later. <code>chrome://gpu</code> should then list
+          <code>ANGLE&nbsp;Metal</code> under <code>GL_RENDERER</code>.
+        </p>
+      </section>
 
-        <dt>Music</dt>
-        <dd>
-          &ldquo;Code Monkey&rdquo;, &ldquo;Creepy Doll&rdquo; and &ldquo;Re: Your Brains&rdquo; by
+      <section class="block">
+        <h2>Music</h2>
+        <p>
+          &ldquo;Code Monkey&rdquo;, &ldquo;Creepy Doll&rdquo; and
+          &ldquo;Re: Your Brains&rdquo; by
           <a href="https://www.jonathancoulton.com" target="_blank" rel="noopener noreferrer">Jonathan Coulton</a>,
           used under
           <a href="https://creativecommons.org/licenses/by-nc/3.0/" target="_blank" rel="noopener noreferrer">CC&nbsp;BY-NC&nbsp;3.0</a>.
-        </dd>
-        <dd>
-          &ldquo;Dirtbag&rdquo;, &ldquo;Certain Death&rdquo; and &ldquo;There&rsquo;s Something Wrong&rdquo; by
+        </p>
+        <p>
+          &ldquo;Dirtbag&rdquo;, &ldquo;Certain Death&rdquo; and
+          &ldquo;There&rsquo;s Something Wrong&rdquo; by
           <a href="https://www.bradsucks.net" target="_blank" rel="noopener noreferrer">Brad Sucks</a>,
           used under
           <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer">CC&nbsp;BY-SA&nbsp;3.0</a>.
-        </dd>
-      </dl>
+        </p>
+      </section>
 
-      <footer class="footer-links">
-        <a href="/">&larr; Return to index</a>
+      <footer class="foot">
         <a href="https://github.com/elicoggins/keyboardwarrior" target="_blank" rel="noopener noreferrer">github.com/elicoggins/keyboardwarrior</a>
       </footer>
-    </div>
+    </main>
 
     <script src="/keyboardwarrior/mq_js_bundle.js"></script>
     <!-- WebAudio plugin: registers the kw_audio_start wasm import; must run before load() -->
     <script src="/keyboardwarrior/kw_audio.js"></script>
     <script>
-      // Only boot the game if the wasm build has been published alongside this page.
-      (async () => {
-        const frame = document.getElementById('game-frame');
+      (() => {
+        const stage = document.getElementById('stage');
+        const screen = document.getElementById('screen');
+        const canvas = document.getElementById('glcanvas');
+        const drop = document.getElementById('drop');
+        const fsBtn = document.getElementById('fs');
 
-        // The game needs a physical keyboard: on mobile, show a notice instead
-        // of loading the wasm build. Matches the main site's 760px breakpoint.
-        if (window.matchMedia('(max-width: 760px)').matches) {
-          frame.dataset.state = 'desktop-only';
-          return;
+        document.getElementById('more').addEventListener('click', () => {
+          document.querySelector('.sheet').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        // What decides this is the pointer, not the width. A touch device is a
+        // dead end — the game is typed with both hands — but a narrow window on
+        // a laptop is only narrow, and telling someone with a keyboard that
+        // they need a keyboard is worse than a small canvas. `pointer: coarse`
+        // reports the *primary* input, so it catches every phone and both iPad
+        // orientations while leaving a half-width desktop window alone.
+        const touch = window.matchMedia('(pointer: coarse)');
+
+        let started = false;
+        const start = () => {
+          if (started) return;
+          started = true;
+          stage.dataset.mode = '';
+          wire();
+          boot();
+        };
+
+        if (touch.matches) {
+          stage.dataset.mode = 'unsupported';
+        } else {
+          start();
         }
 
-        const wasmPath = '/keyboardwarrior/keyboardwarrior.wasm';
-        try {
-          const head = await fetch(wasmPath, { method: 'HEAD' });
-          if (!head.ok) return;
-          frame.dataset.state = 'ready';
-          load(wasmPath);
-        } catch {
-          /* leave the pending notice up */
+        // A trackpad connected to a tablet flips this, and the page should not
+        // need reloading to notice. Nothing was fetched while unsupported, so
+        // starting late costs only the download it was always going to cost.
+        touch.addEventListener?.('change', (e) => {
+          if (!e.matches) start();
+          else if (!started) stage.dataset.mode = 'unsupported';
+        });
+
+        function wire() {
+
+          // ------------------------------------------------------------ focus
+          //
+          // miniquad registers keyboard input on `canvas.onkeydown`, so the canvas
+          // holding focus is the difference between a playable game and a dead
+          // one. The bundle focuses it once at load; anything the visitor clicks
+          // after that takes it away silently, and SPACE then scrolls the page
+          // instead of firing star power. Take it back wherever the intent is
+          // obviously "play".
+          const focusGame = () => {
+            try {
+              canvas.focus({ preventScroll: true });
+            } catch {
+              canvas.focus();
+            }
+          };
+
+          screen.addEventListener('pointerdown', focusGame);
+
+          // The picture filling the viewport *is* the intent to play, whatever
+          // happens to hold focus at the time. This used to reclaim only from
+          // `document.body`, which meant that following any link in the notes —
+          // "here", a charter, a licence — left focus on that anchor, and
+          // scrolling back to the game gave you a dead keyboard and a SPACE bar
+          // that scrolled the page. Nothing else on the page needs focus while
+          // the game owns the screen: miniquad swallows Tab (keycode 258), so
+          // there is no tab order to interrupt and nothing to steal from.
+          let visible = 1;
+          const reclaim = () => {
+            if (visible > 0.75 && document.activeElement !== canvas) focusGame();
+          };
+
+          window.addEventListener('focus', reclaim);
+          document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) reclaim();
+          });
+
+          if ('IntersectionObserver' in window) {
+            new IntersectionObserver(
+              (entries) => {
+                for (const entry of entries) visible = entry.intersectionRatio;
+                reclaim();
+              },
+              // Enough steps that `visible` is roughly current whenever the
+              // window regains focus, rather than only at the 0.75 crossing.
+              { threshold: [0, 0.25, 0.5, 0.75, 0.9, 1] }
+            ).observe(screen);
+          }
+
+          // --------------------------------------------------- the drop-down
+          let idle;
+          const showDrop = (linger = 2200) => {
+            screen.dataset.drop = '1';
+            clearTimeout(idle);
+            idle = setTimeout(() => {
+              screen.dataset.drop = '';
+            }, linger);
+          };
+          screen.addEventListener('pointermove', () => showDrop());
+          screen.addEventListener('pointerleave', () => {
+            clearTimeout(idle);
+            screen.dataset.drop = '';
+          });
+          // Reaching for the control must not start the clock that hides it.
+          drop.addEventListener('pointerenter', () => {
+            screen.dataset.drop = '1';
+            clearTimeout(idle);
+          });
+          drop.addEventListener('pointerleave', () => showDrop(900));
+          // Clicking it must not cost the game its keyboard.
+          fsBtn.addEventListener('mousedown', (e) => e.preventDefault());
+
+          // ------------------------------------------------------- fullscreen
+          const enterFs = stage.requestFullscreen ?? stage.webkitRequestFullscreen;
+          const exitFs = document.exitFullscreen ?? document.webkitExitFullscreen;
+          const fsElement = () => document.fullscreenElement ?? document.webkitFullscreenElement;
+          if (enterFs) {
+            fsBtn.addEventListener('click', () => {
+              if (fsElement()) {
+                exitFs.call(document);
+              } else {
+                Promise.resolve(enterFs.call(stage)).catch(() => {});
+              }
+            });
+
+            const onFullscreenChange = () => {
+              const on = fsElement() === stage;
+              fsBtn.textContent = on ? 'Exit fullscreen' : 'Fullscreen';
+
+              if (on) {
+                // ESC is the game's pause key (playing.rs), so fullscreen must
+                // not spend it on its own exit. Keyboard Lock hands ESC back to
+                // the page: the browser's way out becomes a *held* ESC, which
+                // it announces itself, and the button above is the other way.
+                //
+                // Secure-context only. Served over plain HTTP from a LAN
+                // address the API is simply absent, the lock no-ops, and ESC
+                // leaves fullscreen instead of pausing — localhost and the
+                // deployed HTTPS site both lock as intended.
+                navigator.keyboard?.lock?.(['Escape']).catch(() => {});
+                showDrop(4000);
+              } else {
+                navigator.keyboard?.unlock?.();
+              }
+
+              // miniquad only re-reads the canvas box on a window resize, and a
+              // fullscreen transition does not always produce one.
+              requestAnimationFrame(() => {
+                window.dispatchEvent(new Event('resize'));
+                focusGame();
+              });
+            };
+            document.addEventListener('fullscreenchange', onFullscreenChange);
+            document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+          } else {
+            fsBtn.hidden = true;
+          }
+        }
+
+        // ------------------------------------------------------------- boot
+        //
+        // Straight into the game: it draws its own boot screen while the songs
+        // arrive, and its menu is a better first frame than anything this page
+        // could put in front of it. The audio context is resumed by the first
+        // keystroke or click, wherever it lands (see web/kw_audio.js).
+        function boot() {
+          const fail = (text) => {
+            stage.dataset.mode = 'error';
+            document.getElementById('fallback-copy').textContent = text;
+          };
+          if (typeof load !== 'function') {
+            fail('The browser demo could not start here. The full game is free for macOS, Windows and Linux.');
+            return;
+          }
+          load('/keyboardwarrior/keyboardwarrior.wasm');
+
+          // `wasm_exports` is the bundle's own handle on the instantiated module.
+          // If it never turns up, something is wrong with the build rather than
+          // slow, and a download link beats an indefinite black rectangle.
+          const startedAt = Date.now();
+          const poll = setInterval(() => {
+            if (typeof wasm_exports !== 'undefined' && wasm_exports) {
+              clearInterval(poll);
+            } else if (Date.now() - startedAt > 25000) {
+              clearInterval(poll);
+              fail('The browser demo did not load. The full game is free for macOS, Windows and Linux.');
+            }
+          }, 200);
         }
       })();
     </script>

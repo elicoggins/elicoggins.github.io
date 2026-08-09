@@ -4,11 +4,6 @@
     <meta charset="utf-8" />
     <style>
       @font-face {
-        font-family: 'Newsreader';
-        font-weight: 300;
-        src: url('file:///Users/elijahcoggins/Documents/Code/personal/public/fonts/newsreader-latin-300-normal.woff2') format('woff2');
-      }
-      @font-face {
         font-family: 'IBM Plex Mono';
         font-weight: 400;
         src: url('file:///Users/elijahcoggins/Documents/Code/personal/public/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
@@ -19,11 +14,15 @@
         src: url('file:///Users/elijahcoggins/Documents/Code/personal/public/fonts/ibm-plex-mono-latin-500-normal.woff2') format('woff2');
       }
 
+      /* The game's palette (src/theme.rs, "EMBER"), not the site's paper one.
+         This card is usually the very first thing anyone sees of the game —
+         in a Discord unfurl or a Slack preview — so it shows the game. */
       :root {
-        --paper: #f6f1e6;
-        --ink: #181817;
-        --muted: #6d6961;
-        --hairline: rgba(24, 24, 23, 0.36);
+        --bg: #0a0a0c;
+        --ink: #e8ecf4;
+        --dim: #9aa2ae;
+        --amber: #fdb840;
+        --cyan: #7fd3f7;
       }
 
       * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,100 +31,90 @@
         width: 1200px;
         height: 630px;
         overflow: hidden;
-        background:
-          radial-gradient(circle at 23% 18%, rgba(255, 255, 255, 0.54), transparent 28%),
-          radial-gradient(circle at 78% 81%, rgba(132, 119, 91, 0.12), transparent 29%),
-          linear-gradient(115deg, rgba(255, 255, 255, 0.16), transparent 42%),
-          var(--paper);
+        position: relative;
+        background: var(--bg);
         color: var(--ink);
         font-family: 'IBM Plex Mono', monospace;
         -webkit-font-smoothing: antialiased;
       }
 
-      .grid {
+      /* A real frame of play, zoomed past the side columns onto the highway
+         itself: this image is usually seen as a thumbnail, and the gems are
+         the part that has to survive being shrunk. Held near full brightness —
+         the scrims below buy the contrast the type needs, so the game does not
+         have to be dimmed to pay for it. */
+      .shot {
         position: absolute;
         inset: 0;
-        opacity: 0.23;
-        background-image:
-          linear-gradient(rgba(24, 24, 23, 0.04) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(24, 24, 23, 0.025) 1px, transparent 1px);
-        background-size: 42px 42px, 42px 42px;
-        -webkit-mask-image: radial-gradient(circle at center, black, transparent 72%);
+        background-image: url('file:///Users/elijahcoggins/Documents/Code/personal/public/keyboardwarrior/gameplay.jpg');
+        background-size: 118% auto;
+        background-position: 45% 100%;
+        filter: brightness(0.96) saturate(1.08);
+      }
+
+      .scrim {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(180deg, rgba(10, 10, 12, 0.97) 0%, rgba(10, 10, 12, 0.9) 16%, rgba(10, 10, 12, 0.35) 27%, rgba(10, 10, 12, 0) 37%),
+          linear-gradient(0deg, rgba(10, 10, 12, 0.95) 0%, rgba(10, 10, 12, 0.62) 10%, rgba(10, 10, 12, 0) 24%),
+          radial-gradient(ellipse 78% 72% at 50% 52%, transparent 45%, rgba(10, 10, 12, 0.5) 100%);
       }
 
       .card {
         position: relative;
         height: 100%;
-        padding: 62px 72px;
+        padding: 58px 66px;
         display: flex;
         flex-direction: column;
+        justify-content: space-between;
+      }
+
+      /* Traced from ProggyClean at the same 8-pixel cap height the game's own
+         font atlas is baked at, so the name here is set in the game's type. */
+      .mark {
+        display: block;
+        width: 604px;
+        fill: var(--ink);
+      }
+
+      .tag {
+        margin-top: 26px;
+        font-size: 25px;
+        letter-spacing: 0.06em;
+        color: var(--cyan);
       }
 
       .rule {
         display: flex;
         justify-content: space-between;
+        align-items: baseline;
         font-size: 19px;
         font-weight: 500;
-        letter-spacing: 0.2em;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
+        color: var(--dim);
       }
 
-      .rule--top { border-bottom: 1px solid var(--hairline); padding-bottom: 22px; }
-      .rule--bottom { border-top: 1px solid var(--hairline); padding-top: 22px; }
-
-      .body {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-      }
-
-      h1 {
-        font-family: 'Newsreader', Georgia, serif;
-        font-weight: 300;
-        font-size: 104px;
-        letter-spacing: 0.01em;
-        line-height: 1;
-      }
-
-      .role {
-        margin-top: 26px;
-        font-size: 27px;
-        letter-spacing: 0.05em;
-        color: var(--muted);
-      }
-
-      .url { text-transform: none; letter-spacing: 0.1em; }
-
-      /* Registration ticks, echoing the site's micro-marks. */
-      .tick { position: absolute; background: var(--hairline); }
-      .tick--tl-h { top: 34px; left: 34px; width: 22px; height: 1px; }
-      .tick--tl-v { top: 34px; left: 34px; width: 1px; height: 22px; }
-      .tick--br-h { bottom: 34px; right: 34px; width: 22px; height: 1px; }
-      .tick--br-v { bottom: 34px; right: 34px; width: 1px; height: 22px; }
+      .rule .url { text-transform: none; letter-spacing: 0.08em; }
+      .rule .free { color: var(--amber); }
     </style>
   </head>
   <body>
-    <div class="grid"></div>
+    <div class="shot"></div>
+    <div class="scrim"></div>
+
     <div class="card">
-      <div class="tick tick--tl-h"></div>
-      <div class="tick tick--tl-v"></div>
-      <div class="tick tick--br-h"></div>
-      <div class="tick tick--br-v"></div>
-
-      <div class="rule rule--top">
-        <span>File // EC-1996</span>
-        <span>KBW-005</span>
+      <div>
+        <svg class="mark" viewBox="0 0 111 8" shape-rendering="crispEdges">
+          <path d="M0 0h1v1h-1zM5 0h1v1h-1zM7 0h5v1h-5zM13 0h1v1h-1zM19 0h1v1h-1zM21 0h4v1h-4zM30 0h2v1h-2zM37 0h2v1h-2zM42 0h4v1h-4zM49 0h4v1h-4zM62 0h1v1h-1zM68 0h1v1h-1zM72 0h2v1h-2zM77 0h4v1h-4zM84 0h4v1h-4zM92 0h3v1h-3zM100 0h2v1h-2zM105 0h4v1h-4zM0 1h1v1h-1zM4 1h1v1h-1zM7 1h1v1h-1zM13 1h1v1h-1zM19 1h1v1h-1zM21 1h1v1h-1zM25 1h1v1h-1zM29 1h1v1h-1zM32 1h1v1h-1zM37 1h2v1h-2zM42 1h1v1h-1zM46 1h1v1h-1zM49 1h1v1h-1zM53 1h1v1h-1zM62 1h1v1h-1zM65 1h1v1h-1zM68 1h1v1h-1zM72 1h2v1h-2zM77 1h1v1h-1zM81 1h1v1h-1zM84 1h1v1h-1zM88 1h1v1h-1zM93 1h1v1h-1zM99 1h1v1h-1zM102 1h1v1h-1zM105 1h1v1h-1zM109 1h1v1h-1zM0 2h1v1h-1zM3 2h1v1h-1zM7 2h1v1h-1zM14 2h1v1h-1zM18 2h1v1h-1zM21 2h1v1h-1zM25 2h1v1h-1zM28 2h1v1h-1zM33 2h1v1h-1zM36 2h1v1h-1zM39 2h1v1h-1zM42 2h1v1h-1zM46 2h1v1h-1zM49 2h1v1h-1zM54 2h1v1h-1zM62 2h1v1h-1zM65 2h1v1h-1zM68 2h1v1h-1zM71 2h1v1h-1zM74 2h1v1h-1zM77 2h1v1h-1zM81 2h1v1h-1zM84 2h1v1h-1zM88 2h1v1h-1zM93 2h1v1h-1zM98 2h1v1h-1zM103 2h1v1h-1zM105 2h1v1h-1zM109 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM7 3h4v1h-4zM15 3h1v1h-1zM17 3h1v1h-1zM21 3h5v1h-5zM28 3h1v1h-1zM33 3h1v1h-1zM36 3h1v1h-1zM39 3h1v1h-1zM42 3h1v1h-1zM46 3h1v1h-1zM49 3h1v1h-1zM54 3h1v1h-1zM62 3h1v1h-1zM64 3h1v1h-1zM66 3h1v1h-1zM68 3h1v1h-1zM71 3h1v1h-1zM74 3h1v1h-1zM77 3h1v1h-1zM81 3h1v1h-1zM84 3h1v1h-1zM88 3h1v1h-1zM93 3h1v1h-1zM98 3h1v1h-1zM103 3h1v1h-1zM105 3h1v1h-1zM109 3h1v1h-1zM0 4h3v1h-3zM7 4h1v1h-1zM16 4h1v1h-1zM21 4h1v1h-1zM26 4h1v1h-1zM28 4h1v1h-1zM33 4h1v1h-1zM36 4h4v1h-4zM42 4h4v1h-4zM49 4h1v1h-1zM54 4h1v1h-1zM62 4h1v1h-1zM64 4h1v1h-1zM66 4h1v1h-1zM68 4h1v1h-1zM71 4h4v1h-4zM77 4h4v1h-4zM84 4h4v1h-4zM93 4h1v1h-1zM98 4h1v1h-1zM103 4h1v1h-1zM105 4h4v1h-4zM0 5h1v1h-1zM3 5h1v1h-1zM7 5h1v1h-1zM16 5h1v1h-1zM21 5h1v1h-1zM26 5h1v1h-1zM28 5h1v1h-1zM33 5h1v1h-1zM35 5h1v1h-1zM40 5h1v1h-1zM42 5h1v1h-1zM45 5h1v1h-1zM49 5h1v1h-1zM54 5h1v1h-1zM63 5h2v1h-2zM66 5h2v1h-2zM70 5h1v1h-1zM75 5h1v1h-1zM77 5h1v1h-1zM80 5h1v1h-1zM84 5h1v1h-1zM87 5h1v1h-1zM93 5h1v1h-1zM98 5h1v1h-1zM103 5h1v1h-1zM105 5h1v1h-1zM108 5h1v1h-1zM0 6h1v1h-1zM4 6h1v1h-1zM7 6h1v1h-1zM16 6h1v1h-1zM21 6h1v1h-1zM26 6h1v1h-1zM29 6h1v1h-1zM32 6h1v1h-1zM35 6h1v1h-1zM40 6h1v1h-1zM42 6h1v1h-1zM46 6h1v1h-1zM49 6h1v1h-1zM53 6h1v1h-1zM63 6h1v1h-1zM67 6h1v1h-1zM70 6h1v1h-1zM75 6h1v1h-1zM77 6h1v1h-1zM81 6h1v1h-1zM84 6h1v1h-1zM88 6h1v1h-1zM93 6h1v1h-1zM99 6h1v1h-1zM102 6h1v1h-1zM105 6h1v1h-1zM109 6h1v1h-1zM0 7h1v1h-1zM5 7h1v1h-1zM7 7h5v1h-5zM16 7h1v1h-1zM21 7h5v1h-5zM30 7h2v1h-2zM35 7h1v1h-1zM40 7h1v1h-1zM42 7h1v1h-1zM47 7h1v1h-1zM49 7h4v1h-4zM63 7h1v1h-1zM67 7h1v1h-1zM70 7h1v1h-1zM75 7h1v1h-1zM77 7h1v1h-1zM82 7h1v1h-1zM84 7h1v1h-1zM89 7h1v1h-1zM92 7h3v1h-3zM100 7h2v1h-2zM105 7h1v1h-1zM110 7h1v1h-1z" />
+        </svg>
+        <p class="tag">type letters in time with the music</p>
       </div>
 
-      <div class="body">
-        <h1>Keyboard Warrior</h1>
-        <p class="role">A rhythm typing game in Rust</p>
-      </div>
-
-      <div class="rule rule--bottom">
+      <div class="rule">
         <span class="url">elicoggins.github.io/keyboardwarrior</span>
-        <span>Browser Demo</span>
+        <span class="free">Play free in your browser</span>
       </div>
     </div>
   </body>
