@@ -339,13 +339,17 @@
         color: var(--dim);
       }
 
-      /* Qualified by the element, or the rule above out-specifies these and
-         sets the title in body copy. */
-      .fallback p.fallback__mark {
-        font-size: clamp(1.75rem, 9vw, 2.75rem);
-        line-height: 1.15;
-        letter-spacing: 0.04em;
-        color: var(--bright);
+      /* Traced from ProggyClean at the 8-pixel cap height the game's own atlas
+         is baked at, and drawn as geometry rather than set as type. The webfont
+         is the same face and is correct everywhere else on the page, but its
+         outlines antialias — at this size, beside a screenshot of the game
+         drawing the identical words as hard pixel blocks, smooth edges read as
+         the wrong font. crispEdges keeps the grid square at any width. */
+      .fallback__mark {
+        display: block;
+        width: min(21rem, 88%);
+        height: auto;
+        fill: var(--bright);
       }
 
       .fallback p.fallback__sub {
@@ -367,15 +371,32 @@
       .stage[data-mode="unsupported"] .screen { overflow: visible; }
       .stage[data-mode="unsupported"] .fallback { position: static; width: 100%; }
 
+      /* Two ways to fill the screen, because only one of them can be trusted
+         with the ESC key. Which one is chosen is decided in script; both are
+         announced here as data-fs so the rest of the page needs no branch. */
+      .stage[data-fs] .rail { display: none; }
+      .stage[data-fs] #glcanvas { max-width: none; }
+
       .stage:fullscreen { height: 100%; background: var(--bg); }
-      .stage:fullscreen .rail { display: none; }
-      .stage:fullscreen #glcanvas { max-width: none; }
+
+      /* The page's own fullscreen, for browsers that would spend ESC leaving
+         the real one. It gives up the browser's chrome — a strip of height the
+         native path reclaims — and in exchange nothing but this page decides
+         what ESC means. */
+      .stage[data-fs="page"] {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        height: 100%;
+        background: var(--bg);
+      }
+
+      html.kw-filled, html.kw-filled body { overflow: hidden; }
 
       /* Safari below 16.4 only has the prefixed form, and one unknown pseudo
-         would throw away the whole selector list — so it gets its own rules. */
+         would throw away the whole selector list — so it gets its own rule.
+         Everything else it needs comes from the data-fs rules above. */
       .stage:-webkit-full-screen { height: 100%; background: var(--bg); }
-      .stage:-webkit-full-screen .rail { display: none; }
-      .stage:-webkit-full-screen #glcanvas { max-width: none; }
 
       /* The menu rules its song list off with a hairline broken by centred type
          (see the alphabet markers in scene/menu.rs). The same rule closes the
@@ -441,20 +462,34 @@
          about 0.44em to the character, so 36rem is roughly 78 of them — long
          enough for the GL_RENDERER note, short enough to read down. Headings
          stay centred over it, the way the menu centres its own labels. */
+      /* ProggyClean advances 0.4375em, so at 18px the column below runs to
+         about eighty characters — the measure a monospace face has been read
+         at for as long as there have been terminals. The side padding is its
+         own, narrower than --gutter, because the gutter is sized for the game
+         above and would spend that measure on empty margin. */
       .sheet {
-        width: min(36rem, 100%);
+        width: min(42rem, 100%);
         margin: 0 auto;
-        padding: clamp(1rem, 3vh, 2rem) var(--gutter) clamp(2.5rem, 7vh, 4rem);
+        padding: clamp(1rem, 3vh, 2rem) clamp(1rem, 3vw, 1.4rem) clamp(2.5rem, 7vh, 4rem);
         text-wrap: pretty;
       }
 
       .lede {
         margin: 0 0 clamp(2rem, 5vh, 3rem);
-        font-size: 1.25rem;
+        font-size: 1.375rem;
         line-height: 1.55;
         color: var(--ink);
         text-wrap: balance;
       }
+
+      .sheet__cta {
+        margin: 0 0 clamp(2rem, 5vh, 3rem);
+        text-align: center;
+      }
+
+      /* On a touch device the card above already carries this exact button a
+         screen higher up; one of them is enough. */
+      .stage[data-mode="unsupported"] ~ .sheet .sheet__cta { display: none; }
 
       .block { margin: 0 0 clamp(1.8rem, 4vh, 2.6rem); }
 
@@ -470,7 +505,7 @@
 
       .block p {
         margin: 0 0 0.9rem;
-        font-size: 1.0625rem;
+        font-size: 1.125rem;
         color: var(--dim);
       }
       .block p:last-child { margin-bottom: 0; }
@@ -522,14 +557,16 @@
              so the card draws it instead — same words, same colours, same
              order as the menu's own opening. -->
         <div class="fallback" id="fallback">
-          <p class="fallback__mark">KEYBOARD WARRIOR</p>
+          <svg class="fallback__mark" viewBox="0 0 111 8" shape-rendering="crispEdges" aria-hidden="true">
+            <path d="M0 0h1v1h-1zM5 0h1v1h-1zM7 0h5v1h-5zM13 0h1v1h-1zM19 0h1v1h-1zM21 0h4v1h-4zM30 0h2v1h-2zM37 0h2v1h-2zM42 0h4v1h-4zM49 0h4v1h-4zM62 0h1v1h-1zM68 0h1v1h-1zM72 0h2v1h-2zM77 0h4v1h-4zM84 0h4v1h-4zM92 0h3v1h-3zM100 0h2v1h-2zM105 0h4v1h-4zM0 1h1v1h-1zM4 1h1v1h-1zM7 1h1v1h-1zM13 1h1v1h-1zM19 1h1v1h-1zM21 1h1v1h-1zM25 1h1v1h-1zM29 1h1v1h-1zM32 1h1v1h-1zM37 1h2v1h-2zM42 1h1v1h-1zM46 1h1v1h-1zM49 1h1v1h-1zM53 1h1v1h-1zM62 1h1v1h-1zM65 1h1v1h-1zM68 1h1v1h-1zM72 1h2v1h-2zM77 1h1v1h-1zM81 1h1v1h-1zM84 1h1v1h-1zM88 1h1v1h-1zM93 1h1v1h-1zM99 1h1v1h-1zM102 1h1v1h-1zM105 1h1v1h-1zM109 1h1v1h-1zM0 2h1v1h-1zM3 2h1v1h-1zM7 2h1v1h-1zM14 2h1v1h-1zM18 2h1v1h-1zM21 2h1v1h-1zM25 2h1v1h-1zM28 2h1v1h-1zM33 2h1v1h-1zM36 2h1v1h-1zM39 2h1v1h-1zM42 2h1v1h-1zM46 2h1v1h-1zM49 2h1v1h-1zM54 2h1v1h-1zM62 2h1v1h-1zM65 2h1v1h-1zM68 2h1v1h-1zM71 2h1v1h-1zM74 2h1v1h-1zM77 2h1v1h-1zM81 2h1v1h-1zM84 2h1v1h-1zM88 2h1v1h-1zM93 2h1v1h-1zM98 2h1v1h-1zM103 2h1v1h-1zM105 2h1v1h-1zM109 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM7 3h4v1h-4zM15 3h1v1h-1zM17 3h1v1h-1zM21 3h5v1h-5zM28 3h1v1h-1zM33 3h1v1h-1zM36 3h1v1h-1zM39 3h1v1h-1zM42 3h1v1h-1zM46 3h1v1h-1zM49 3h1v1h-1zM54 3h1v1h-1zM62 3h1v1h-1zM64 3h1v1h-1zM66 3h1v1h-1zM68 3h1v1h-1zM71 3h1v1h-1zM74 3h1v1h-1zM77 3h1v1h-1zM81 3h1v1h-1zM84 3h1v1h-1zM88 3h1v1h-1zM93 3h1v1h-1zM98 3h1v1h-1zM103 3h1v1h-1zM105 3h1v1h-1zM109 3h1v1h-1zM0 4h3v1h-3zM7 4h1v1h-1zM16 4h1v1h-1zM21 4h1v1h-1zM26 4h1v1h-1zM28 4h1v1h-1zM33 4h1v1h-1zM36 4h4v1h-4zM42 4h4v1h-4zM49 4h1v1h-1zM54 4h1v1h-1zM62 4h1v1h-1zM64 4h1v1h-1zM66 4h1v1h-1zM68 4h1v1h-1zM71 4h4v1h-4zM77 4h4v1h-4zM84 4h4v1h-4zM93 4h1v1h-1zM98 4h1v1h-1zM103 4h1v1h-1zM105 4h4v1h-4zM0 5h1v1h-1zM3 5h1v1h-1zM7 5h1v1h-1zM16 5h1v1h-1zM21 5h1v1h-1zM26 5h1v1h-1zM28 5h1v1h-1zM33 5h1v1h-1zM35 5h1v1h-1zM40 5h1v1h-1zM42 5h1v1h-1zM45 5h1v1h-1zM49 5h1v1h-1zM54 5h1v1h-1zM63 5h2v1h-2zM66 5h2v1h-2zM70 5h1v1h-1zM75 5h1v1h-1zM77 5h1v1h-1zM80 5h1v1h-1zM84 5h1v1h-1zM87 5h1v1h-1zM93 5h1v1h-1zM98 5h1v1h-1zM103 5h1v1h-1zM105 5h1v1h-1zM108 5h1v1h-1zM0 6h1v1h-1zM4 6h1v1h-1zM7 6h1v1h-1zM16 6h1v1h-1zM21 6h1v1h-1zM26 6h1v1h-1zM29 6h1v1h-1zM32 6h1v1h-1zM35 6h1v1h-1zM40 6h1v1h-1zM42 6h1v1h-1zM46 6h1v1h-1zM49 6h1v1h-1zM53 6h1v1h-1zM63 6h1v1h-1zM67 6h1v1h-1zM70 6h1v1h-1zM75 6h1v1h-1zM77 6h1v1h-1zM81 6h1v1h-1zM84 6h1v1h-1zM88 6h1v1h-1zM93 6h1v1h-1zM99 6h1v1h-1zM102 6h1v1h-1zM105 6h1v1h-1zM109 6h1v1h-1zM0 7h1v1h-1zM5 7h1v1h-1zM7 7h5v1h-5zM16 7h1v1h-1zM21 7h5v1h-5zM30 7h2v1h-2zM35 7h1v1h-1zM40 7h1v1h-1zM42 7h1v1h-1zM47 7h1v1h-1zM49 7h4v1h-4zM63 7h1v1h-1zM67 7h1v1h-1zM70 7h1v1h-1zM75 7h1v1h-1zM77 7h1v1h-1zM82 7h1v1h-1zM84 7h1v1h-1zM89 7h1v1h-1zM92 7h3v1h-3zM100 7h2v1h-2zM105 7h1v1h-1zM110 7h1v1h-1z" />
+          </svg>
           <p class="fallback__sub">a rhythm typing game</p>
           <picture>
             <source media="(max-width: 44rem)" srcset="/keyboardwarrior/gameplay-tall.jpg" width="812" height="849" />
             <img src="/keyboardwarrior/gameplay.jpg" width="1920" height="1080" alt="Keyboard Warrior gameplay: lettered notes falling toward a strike line, with the lyric being typed underneath" />
           </picture>
           <p id="fallback-copy">
-            keyboard warrior needs a physical keyboard, so it&rsquo;s playable on
+            keyboard warrior needs a physical keyboard, so it's playable on
             desktop only.
           </p>
           <a
@@ -555,6 +592,16 @@
         Clone Hero and YARG.
       </p>
 
+      <p class="sheet__cta">
+        <a
+          class="cap cap--gold"
+          href="https://github.com/elicoggins/keyboardwarrior"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub</a
+        >
+      </p>
+
       <section class="block">
         <h2>Notes</h2>
         <p>
@@ -562,7 +609,7 @@
           <a href="https://github.com/elicoggins/keyboardwarrior" target="_blank" rel="noopener noreferrer">here</a>.
         </p>
         <p>
-          This is only a demo. The game wasn&rsquo;t built for a browser so some
+          This is only a demo. The game wasn't built for a browser so some
           sacrifices had to be made to get it running. The downloadable version is
           the ideal way to play and allows you to easily expand your song library.
         </p>
@@ -578,15 +625,15 @@
       <section class="block">
         <h2>Music</h2>
         <p>
-          &ldquo;Code Monkey&rdquo;, &ldquo;Creepy Doll&rdquo; and
-          &ldquo;Re: Your Brains&rdquo; by
+          "Code Monkey", "Creepy Doll" and
+          "Re: Your Brains" by
           <a href="https://www.jonathancoulton.com" target="_blank" rel="noopener noreferrer">Jonathan Coulton</a>,
           used under
           <a href="https://creativecommons.org/licenses/by-nc/3.0/" target="_blank" rel="noopener noreferrer">CC&nbsp;BY-NC&nbsp;3.0</a>.
         </p>
         <p>
-          &ldquo;Dirtbag&rdquo;, &ldquo;Certain Death&rdquo; and
-          &ldquo;There&rsquo;s Something Wrong&rdquo; by
+          "Dirtbag", "Certain Death" and
+          "There's Something Wrong" by
           <a href="https://www.bradsucks.net" target="_blank" rel="noopener noreferrer">Brad Sucks</a>,
           used under
           <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer">CC&nbsp;BY-SA&nbsp;3.0</a>.
@@ -718,50 +765,108 @@
           fsBtn.addEventListener('mousedown', (e) => e.preventDefault());
 
           // ------------------------------------------------------- fullscreen
+          //
+          // ESC is the game's pause key (playing.rs toggles `transport.paused`
+          // on it) and the Fullscreen API wants the same key for its own exit.
+          // Only one of them can have it.
+          //
+          // Chromium lends it back through Keyboard Lock, and there ESC pauses
+          // in place while a *held* ESC leaves. Nothing else implements it, and
+          // on those browsers the key cannot be shared at all: Safari spends it
+          // on the exit and only hands the keydown to the page afterwards, once
+          // the animated transition is over. A pause that arrives then has
+          // already cost the run every note that fell during the transition,
+          // and no amount of arranging on this side can move it earlier — the
+          // exit event is the first the page hears of it.
+          //
+          // So where the key cannot be kept, the fullscreen is not the
+          // browser's. The stage is pinned over the viewport instead: nothing
+          // intercepts ESC, it reaches the canvas in a millisecond and pauses
+          // instantly, and this button is the way back out. The cost is the
+          // browser's own chrome staying on screen.
           const enterFs = stage.requestFullscreen ?? stage.webkitRequestFullscreen;
           const exitFs = document.exitFullscreen ?? document.webkitExitFullscreen;
           const fsElement = () => document.fullscreenElement ?? document.webkitFullscreenElement;
-          if (enterFs) {
-            fsBtn.addEventListener('click', () => {
-              if (fsElement()) {
-                exitFs.call(document);
-              } else {
-                Promise.resolve(enterFs.call(stage)).catch(() => {});
-              }
-            });
 
-            const onFullscreenChange = () => {
-              const on = fsElement() === stage;
-              fsBtn.textContent = on ? 'Exit fullscreen' : 'Fullscreen';
-
-              if (on) {
-                // ESC is the game's pause key (playing.rs), so fullscreen must
-                // not spend it on its own exit. Keyboard Lock hands ESC back to
-                // the page: the browser's way out becomes a *held* ESC, which
-                // it announces itself, and the button above is the other way.
-                //
-                // Secure-context only. Served over plain HTTP from a LAN
-                // address the API is simply absent, the lock no-ops, and ESC
-                // leaves fullscreen instead of pausing — localhost and the
-                // deployed HTTPS site both lock as intended.
-                navigator.keyboard?.lock?.(['Escape']).catch(() => {});
-                showDrop(4000);
-              } else {
-                navigator.keyboard?.unlock?.();
-              }
-
-              // miniquad only re-reads the canvas box on a window resize, and a
-              // fullscreen transition does not always produce one.
-              requestAnimationFrame(() => {
-                window.dispatchEvent(new Event('resize'));
-                focusGame();
-              });
-            };
-            document.addEventListener('fullscreenchange', onFullscreenChange);
-            document.addEventListener('webkitfullscreenchange', onFullscreenChange);
-          } else {
-            fsBtn.hidden = true;
+          // Learned by asking rather than inferred from the API's presence —
+          // Keyboard Lock can exist and still refuse. Kept because it is a
+          // property of the browser, not of the session, so the one flicker it
+          // costs to find out happens once.
+          const LOCK_MEMO = 'keyboardwarrior.esclock.v1';
+          let escCustody = null;
+          try {
+            escCustody = localStorage.getItem(LOCK_MEMO);
+          } catch {
+            /* private mode: re-learn it each visit */
           }
+          const recordCustody = (verdict) => {
+            escCustody = verdict;
+            try {
+              localStorage.setItem(LOCK_MEMO, verdict);
+            } catch {
+              /* still right for this session */
+            }
+          };
+
+          const setFilled = (mode) => {
+            if (mode) stage.dataset.fs = mode;
+            else delete stage.dataset.fs;
+            document.documentElement.classList.toggle('kw-filled', mode === 'page');
+            fsBtn.textContent = mode ? 'Exit fullscreen' : 'Fullscreen';
+            if (mode) showDrop(4000);
+            // miniquad only re-reads the canvas box on a window resize, and
+            // neither transition reliably produces one.
+            requestAnimationFrame(() => {
+              window.dispatchEvent(new Event('resize'));
+              focusGame();
+            });
+          };
+
+          // Worth trying the browser's own fullscreen: the API is here, it has
+          // not already refused to lend ESC back, and there is a fullscreen to
+          // ask for.
+          const worthAsking = () =>
+            !!enterFs && escCustody !== 'denied' && typeof navigator.keyboard?.lock === 'function';
+
+          let pageAfterExit = false;
+          const fallBackToPage = () => {
+            // It would keep ESC. Come back out and fill the page instead.
+            recordCustody('denied');
+            pageAfterExit = true;
+            exitFs.call(document);
+          };
+
+          fsBtn.addEventListener('click', () => {
+            if (stage.dataset.fs === 'page') {
+              setFilled(null);
+            } else if (fsElement()) {
+              exitFs.call(document);
+            } else if (worthAsking()) {
+              Promise.resolve(enterFs.call(stage)).catch(() => setFilled('page'));
+            } else {
+              setFilled('page');
+            }
+          });
+
+          const onFullscreenChange = () => {
+            if (fsElement() === stage) {
+              setFilled('native');
+              const lock = navigator.keyboard?.lock?.(['Escape']);
+              if (!lock) {
+                fallBackToPage();
+              } else {
+                lock.then(() => recordCustody('held')).catch(fallBackToPage);
+              }
+              return;
+            }
+            if (stage.dataset.fs !== 'native') return;
+            navigator.keyboard?.unlock?.();
+            const next = pageAfterExit ? 'page' : null;
+            pageAfterExit = false;
+            setFilled(next);
+          };
+          document.addEventListener('fullscreenchange', onFullscreenChange);
+          document.addEventListener('webkitfullscreenchange', onFullscreenChange);
         }
 
         // ------------------------------------------------------------- boot
