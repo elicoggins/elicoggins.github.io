@@ -119,7 +119,7 @@ export const template = `
             <span role="cell">KBW-005</span>
             <span role="cell">Keyboard Warrior - Rhythm typing game</span>
             <span role="cell">Web // Rust</span>
-            <span role="cell">In Development</span>
+            <span role="cell">v1.1.0</span>
           </a>
         </div>
 
