@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Hand-maintained: three pages is not worth generating. Update <lastmod> when a
+  Hand-maintained: two pages is not worth generating. Update <lastmod> when a
   page's content actually changes — a date that moves on every build is one
   Google learns to ignore.
 -->
@@ -10,11 +10,10 @@
     <lastmod>2026-08-04</lastmod>
     <priority>1.0</priority>
   </url>
-  <url>
-    <loc>https://elicoggins.github.io/keyboardwarrior/</loc>
-    <lastmod>2026-08-04</lastmod>
-    <priority>0.8</priority>
-  </url>
+  <!-- Keyboard Warrior was listed here until it moved to keyboardwarrior.app.
+       Not re-pointed at the new domain: a sitemap may only list URLs on the
+       host that serves it, and /keyboardwarrior/ now belongs to a different
+       Pages site that 301s away from here. -->
   <!-- Deployed from the separate elicoggins/unpuzzle repo, same host. -->
   <url>
     <loc>https://elicoggins.github.io/unpuzzle/</loc>

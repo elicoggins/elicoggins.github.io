@@ -1,4 +1,3 @@
-import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 
 import { template } from './src/template.js';
@@ -29,12 +28,4 @@ function prerenderApp() {
 export default defineConfig({
   base: '/',
   plugins: [prerenderApp()],
-  build: {
-    rollupOptions: {
-      input: {
-        main: resolve(import.meta.dirname, 'index.html'),
-        keyboardwarrior: resolve(import.meta.dirname, 'keyboardwarrior/index.html'),
-      },
-    },
-  },
 });

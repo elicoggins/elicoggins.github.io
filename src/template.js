@@ -114,7 +114,7 @@ export const template = `
             <span role="cell">PICO-8</span>
             <span role="cell">Live</span>
           </a>
-          <a class="ledger-row" href="/keyboardwarrior/" role="row">
+          <a class="ledger-row" href="https://keyboardwarrior.app" target="_blank" rel="noopener noreferrer" role="row">
             <span role="cell">5</span>
             <span role="cell">KBW-005</span>
             <span role="cell">Keyboard Warrior - Rhythm typing game</span>
